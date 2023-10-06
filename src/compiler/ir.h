@@ -38,7 +38,7 @@ typedef struct IR_expression_             *IR_expression;
 
 typedef struct IR_type_                   *IR_type;
 typedef struct IR_typeDesignator_         *IR_typeDesignator;
-typedef struct IR_typeDesignatorArrayDim_ *IR_typeDesignatorArrayDim;
+typedef struct IR_typeDesignatorExt_      *IR_typeDesignatorExt;
 typedef struct IR_const_                  *IR_const;
 
 struct IR_assembly_
@@ -159,6 +159,9 @@ struct IR_proc_
 #define VTABLE_SPECIAL_ENTRY_TYPEDESC  0
 #define VTABLE_SPECIAL_ENTRY_GCSCAN    1
 
+// FIXME
+#define MAX_ARRAY_DIMS                 5
+
 struct IR_type_
 {
     enum { Ty_unresolved,   //  0 also used when loading assemblies
@@ -179,7 +182,7 @@ struct IR_type_
            Ty_reference,    // 12 a reference is a pointer to a class or interface that is tracked by our GC
            Ty_pointer,      // 13
 
-           //Ty_sarray,       // 14 
+           Ty_array,        // 14 
            //Ty_darray,       // 15
 
            //Ty_record,       // 16
@@ -205,8 +208,12 @@ struct IR_type_
                 IR_proc           __init;
                 IR_memberList     members;
                 int16_t           virtualMethodCnt;
-                IR_member         vTablePtr;                                   } cls;
+                IR_member         vTablePtr;                                } cls;
         IR_type                                                               ref;
+        struct {int               numDims;
+                int               dims[MAX_ARRAY_DIMS];
+                IR_type           elementType;
+                uint32_t          uiSize;                                   } array;
     } u;
     Temp_label tdLabel; // type descriptor label (caching only)
 };
@@ -217,14 +224,20 @@ struct IR_type_
 struct IR_typeDesignator_
 {
     IR_name                     name;   // NULL -> void
-    int                         numPointers;
-    IR_typeDesignatorArrayDim   arrayDims;
+    IR_typeDesignatorExt        exts;
 };
 
-struct IR_typeDesignatorArrayDim_
+typedef enum { IR_tdExtPointer, IR_tdExtArray } IR_tdExtKind;
+
+struct IR_typeDesignatorExt_
 {
-    IR_expression             e;
-    IR_typeDesignatorArrayDim next;
+    IR_tdExtKind              kind;
+    S_pos                     pos;
+    IR_typeDesignatorExt      next;
+
+    // array only:
+    int                       numDims;
+    IR_expression             dims[MAX_ARRAY_DIMS];
 };
 
 struct IR_const_
@@ -374,18 +387,21 @@ bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol id);
+IR_type            IR_TypeArray          (S_pos pos, int numDims, IR_type elementType);
 IR_type            IR_getReference       (S_pos pos, IR_type ty);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
 
 IR_typeDesignator         IR_TypeDesignator         (IR_name name);
-IR_typeDesignatorArrayDim IR_TypeDesignatorArrayDim (void);
+IR_typeDesignatorExt      IR_TypeDesignatorExt      (S_pos pos, IR_tdExtKind kind);
 
 IR_const           IR_ConstBool          (IR_type ty, bool     b);
 IR_const           IR_ConstInt           (IR_type ty, int32_t  i);
 IR_const           IR_ConstUInt          (IR_type ty, uint32_t u);
 IR_const           IR_ConstFloat         (IR_type ty, double   f);
 IR_const           IR_ConstString        (IR_type ty, string   s);
+
+int32_t            IR_constGetI32        (S_pos pos, IR_const c);
 
 IR_method          IR_Method             (IR_proc proc, bool isVirtual);
 

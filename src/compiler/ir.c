@@ -255,8 +255,8 @@ int IR_typeSize (IR_type ty)
              return 8;
         //case Ty_darray:
         //    return ty->u.darray.tyCArray->u.cls.uiSize;
-        //case Ty_sarray:
-        //    return ty->u.sarray.uiSize;
+        case Ty_array:
+             return ty->u.array.uiSize;
         //case Ty_record:
         //    return ty->u.record.uiSize;
         case Ty_class:
@@ -277,11 +277,14 @@ IR_typeDesignator IR_TypeDesignator (IR_name name)
     return td;
 }
 
-IR_typeDesignatorArrayDim IR_TypeDesignatorArrayDim (void)
+IR_typeDesignatorExt IR_TypeDesignatorExt (S_pos pos, IR_tdExtKind kind)
 {
-    IR_typeDesignatorArrayDim ad = U_poolAllocZero(UP_types, sizeof(*ad));
+    IR_typeDesignatorExt ext = U_poolAllocZero(UP_types, sizeof(*ext));
 
-    return ad;
+    ext->kind = kind;
+    ext->pos  = pos;
+
+    return ext;
 }
 
 IR_const IR_ConstBool (IR_type ty, bool b)
@@ -298,6 +301,8 @@ IR_const IR_ConstInt (IR_type ty, int32_t i)
 {
     IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
+    assert (ty->kind==Ty_sbyte || ty->kind==Ty_int16 || ty->kind==Ty_int32);
+
     p->ty  = ty;
     p->u.i = i;
 
@@ -307,6 +312,8 @@ IR_const IR_ConstInt (IR_type ty, int32_t i)
 IR_const IR_ConstUInt (IR_type ty, uint32_t u)
 {
     IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
+
+    assert (ty->kind==Ty_byte || ty->kind==Ty_uint16 || ty->kind==Ty_uint32);
 
     p->ty  = ty;
     p->u.u = u;
@@ -332,6 +339,24 @@ IR_const IR_ConstString (IR_type ty, string s)
     p->u.s = s;
 
     return p;
+}
+
+int32_t IR_constGetI32 (S_pos pos, IR_const c)
+{
+    switch (c->ty->kind)
+    {
+        case Ty_byte:
+        case Ty_uint16:
+        case Ty_uint32:
+            return c->u.u;
+        case Ty_sbyte:
+        case Ty_int16:
+        case Ty_int32:
+            return c->u.i;
+        default:
+            EM_error (pos, "integer constant expected here");
+    }
+    return 0;
 }
 
 IR_variable IR_Variable (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression initExp)
@@ -408,6 +433,18 @@ IR_type IR_TypeUnresolved (S_pos pos, S_symbol id)
     t->kind         = Ty_unresolved;
     t->pos          = pos;
     t->u.unresolved = id;
+
+    return t;
+}
+
+IR_type IR_TypeArray (S_pos pos, int numDims, IR_type elementType)
+{
+    IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
+
+    t->kind                = Ty_array;
+    t->pos                 = pos;
+    t->u.array.numDims     = numDims;
+    t->u.array.elementType = elementType;
 
     return t;
 }

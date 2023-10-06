@@ -310,7 +310,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
     return true;
 }
 
-static IR_type _elaborateType (IR_typeDesignator td, IR_namespace names);
+static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_namespace names);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
@@ -367,7 +367,7 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
             {
                 IR_variable v = e->u.var;
                 if (!v->ty)
-                    v->ty = _elaborateType (v->td, names);
+                    v->ty = _elaborateType (v->td, context, names);
                 SEM_item *se = _SEM_Item (SIK_cg);
                 CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, v->ty);
                 TAB_enter (context->entries, v->id, se);
@@ -881,14 +881,14 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace
     }
 }
 
-static void _elaborateProc (IR_proc proc, IR_namespace parent)
+static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespace parent)
 {
     if (!proc->returnTy)
-        proc->returnTy = _elaborateType (proc->returnTd, parent);
+        proc->returnTy = _elaborateType (proc->returnTd, parentContext, parent);
     for (IR_formal formal = proc->formals; formal; formal=formal->next)
     {
         if (!formal->ty)
-            formal->ty = _elaborateType (formal->td, parent);
+            formal->ty = _elaborateType (formal->td, parentContext, parent);
     }
 
     if (!proc->isExtern)
@@ -916,7 +916,7 @@ static void _elaborateProc (IR_proc proc, IR_namespace parent)
         }
 
         AS_instrList code = AS_InstrList();
-        SEM_context context = _SEM_Context (/*parent=*/NULL);
+        SEM_context context = _SEM_Context (parentContext);
         context->code     = code;
         context->frame    = funFrame;
         context->exitlbl  = Temp_newlabel();
@@ -953,11 +953,11 @@ static void _elaborateProc (IR_proc proc, IR_namespace parent)
     }
 }
 
-static void _elaborateMethod (IR_method method, IR_type tyCls, IR_namespace parent)
+static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context, IR_namespace parent)
 {
     S_pos pos = method->proc->pos;
 
-    _elaborateProc (method->proc, parent);
+    _elaborateProc (method->proc, context, parent);
 
     // check existing entries: is this an override?
     int16_t vTableIdx = -1;
@@ -1364,7 +1364,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
 
     if (tyCls->u.cls.baseTd)
-        tyCls->u.cls.baseTy = _elaborateType (tyCls->u.cls.baseTd, parent);
+        tyCls->u.cls.baseTy = _elaborateType (tyCls->u.cls.baseTd, /*context=*/NULL, parent);
 
     IR_type tyBase = tyCls->u.cls.baseTy;
 
@@ -1393,12 +1393,12 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         {
             case IR_recField:
                 if (!member->u.field.ty)
-                    member->u.field.ty = _elaborateType (member->u.field.td, names);
+                    member->u.field.ty = _elaborateType (member->u.field.td, /*context=*/NULL, names);
                 IR_fieldCalcOffset (tyCls, member);
                 break;
             case IR_recProperty:
                 if (!member->u.property.ty)
-                    member->u.property.ty = _elaborateType (member->u.property.td, names);
+                    member->u.property.ty = _elaborateType (member->u.property.td, /*context=*/NULL, names);
                 break;
             default:
                 break;
@@ -1415,7 +1415,8 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         switch (member->kind)
         {
             case IR_recMethod:
-                _elaborateMethod (member->u.method, tyCls, names);
+                // FIXME: static type initializer context?
+                _elaborateMethod (member->u.method, tyCls, /*context=*/NULL, names);
                 break;
             case IR_recField:
                 continue;
@@ -1500,23 +1501,75 @@ static IR_namespace _namesResolveNames (S_pos pos, IR_namespace parent, S_symbol
 }
 #endif
 
-static IR_type _elaborateType (IR_typeDesignator td, IR_namespace names)
+static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context context)
+{
+    if (!ext)
+        return t;
+    t = _applyTdExt (t, ext->next, context);
+
+    switch (ext->kind)
+    {
+        case IR_tdExtPointer:
+        {
+            t = IR_getPointer (ext->pos, t);
+            break;
+        }
+        case IR_tdExtArray:
+        {
+            t = IR_TypeArray (ext->pos, ext->numDims, t);
+            t->u.array.uiSize = IR_typeSize (t->u.array.elementType);
+            for (int i=0; i<ext->numDims; i++)
+            {
+                SEM_item dim;
+                if (!_elaborateExpression (ext->dims[i], context, &dim))
+                {
+                    EM_error (ext->dims[i]->pos, "failed to elaborate array dimension expression");
+                    return t;
+                }
+
+                if ((dim.kind != SIK_cg) || (dim.u.cg.kind != IK_const))
+                {
+                    EM_error (ext->dims[i]->pos, "constant array dimension expression expected");
+                    return t;
+                }
+
+                int32_t d = IR_constGetI32 (ext->dims[i]->pos, dim.u.cg.u.c);
+                t->u.array.dims[i] = d;
+                t->u.array.uiSize *= d;
+            }
+            break;
+        }
+    }
+    return t;
+}
+
+static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_namespace names)
 {
     if (!td->name)
+    {
+        assert (!td->exts);
         return NULL; // void
+    }
 
     IR_name name = td->name;
+    IR_type t=NULL;
 
     // simple id?
     if (!name->first->next)
     {
-        IR_type t = _namesResolveType (name->pos, names, name->first->sym);
-        if (t)
-            return t;
+        t = _namesResolveType (name->pos, names, name->first->sym);
+    }
+    else
+    {
+        assert(false);
+        return NULL; // FIXME
     }
 
-    assert(false);
-    return NULL; // FIXME
+    t = _applyTdExt (t, td->exts, context);
+
+    return t;
+
+
 #if 0
 IR_member IR_namesResolveMember (IR_name name, IR_using usings)
 {

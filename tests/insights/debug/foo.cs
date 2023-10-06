@@ -14,6 +14,8 @@ namespace ConsoleApp10
 
             int c = a + b;
 
+            int myArray1[10];
+
             System.Console.WriteLine("Hello World!");
             Debug.Assert(c==42);
 

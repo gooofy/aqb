@@ -356,7 +356,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                     //case Ty_string:
                                     //    AS_assembleDataString (obj->dataSeg, c->u.s);
                                     //    break;
-                                    //case Ty_sarray:
+                                    case Ty_array:
                                     //case Ty_darray:
                                     case Ty_class:
                                     case Ty_interface:

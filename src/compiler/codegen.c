@@ -234,13 +234,14 @@ Temp_label CG_getTypeDescLabel (IR_type ty)
                 //                                                    ty->uid));
                 break;
 
-            //case Ty_sarray:
+            case Ty_array:
             //case Ty_darray:
             //case Ty_reference:
             //case Ty_procPtr:
             //case Ty_string:
             //    CG_dataFragAddPtr (descFrag, CG_getTypeDescLabel (ty));
-            //    break;
+                assert (false); // FIXME
+                break;
 
             //case Ty_forwardPtr:
             //case Ty_toLoad:
@@ -510,7 +511,7 @@ static enum Temp_w CG_tySize(IR_type ty)
         //case Ty_procPtr:
         //case Ty_any:
             return Temp_w_L;
-        //case Ty_sarray:
+        case Ty_array:
         //case Ty_darray:
         case Ty_class:
         case Ty_interface:
@@ -4771,7 +4772,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         //case Ty_string:
                         //    fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
                         //    break;
-                        //case Ty_sarray:
+                        case Ty_array:
                         //case Ty_darray:
                         case Ty_class:
                         case Ty_interface:

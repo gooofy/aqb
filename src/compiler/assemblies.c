@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     6
+#define SYM_VERSION     7
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -132,6 +132,13 @@ static void _serializeIRTypeRef (IR_type ty)
             break;
         case Ty_pointer:
             _serializeIRTypeRef (ty->u.pointer);
+            break;
+        case Ty_array:
+            _serializeIRTypeRef (ty->u.array.elementType);
+            fwrite_u1(ty->u.array.numDims);
+            for (int i=0; i<ty->u.array.numDims; i++)
+                fwrite_u1(ty->u.array.dims[i]);
+            fwrite_u4(ty->u.array.uiSize);
             break;
         default:
             assert(false); // FIXME
@@ -408,6 +415,13 @@ static IR_type _deserializeIRTypeRef (void)
             break;
         case Ty_pointer:
             ty->u.pointer = _deserializeIRTypeRef ();
+            break;
+        case Ty_array:
+            ty->u.array.elementType = _deserializeIRTypeRef ();
+            ty->u.array.numDims = fread_u1();
+            for (int i=0; i<ty->u.array.numDims; i++)
+                ty->u.array.dims[i] = fread_u1();
+            ty->u.array.uiSize = fread_u4();
             break;
         default:
             assert(false);

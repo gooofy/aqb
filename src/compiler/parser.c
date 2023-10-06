@@ -311,7 +311,7 @@ static IR_name _name (void)
 
 
 /*
- * type : ( "void" | name [ '[' [ expression { ',' expression } ] ']' | { '*' } ] )
+ * type : ( "void" | name { '[' [ expression { ',' expression } ] ']' | '*' } )
  */
 IR_typeDesignator _type(void)
 {
@@ -327,39 +327,59 @@ IR_typeDesignator _type(void)
         return NULL;
 
     IR_typeDesignator td = IR_TypeDesignator (n);
-    if (S_tkn.kind == S_LBRACKET)
+
+    IR_typeDesignatorExt extFirst = NULL;
+    IR_typeDesignatorExt extLast  = NULL;
+
+    while (true)
     {
-        S_nextToken();
-        IR_typeDesignatorArrayDim adFirst = IR_TypeDesignatorArrayDim();
-        IR_typeDesignatorArrayDim adLast  = adFirst;
-
-        if (S_tkn.kind != S_RBRACKET)
+        if (S_tkn.kind == S_LBRACKET)
         {
-            adLast->e = _expression();
+            S_nextToken();
 
-            while (S_tkn.kind == S_COMMA)
+            IR_typeDesignatorExt ext = IR_TypeDesignatorExt (S_tkn.pos, IR_tdExtArray);
+
+            if (S_tkn.kind != S_RBRACKET)
             {
-                S_nextToken();
-                adLast = adLast->next = IR_TypeDesignatorArrayDim();
-                adLast->e = _expression();
+                ext->dims[ext->numDims++] = _expression();
+
+                while (S_tkn.kind == S_COMMA)
+                {
+                    if (ext->numDims >= MAX_ARRAY_DIMS)
+                    {
+                        EM_error (S_tkn.pos, "FIXME: too many array dimensions");
+                        break;
+                    }
+                    ext->dims[ext->numDims++] = _expression();
+                    S_nextToken();
+                }
             }
+
+            if (S_tkn.kind == S_RBRACKET)
+                S_nextToken();
+            else
+                EM_error (S_tkn.pos, "] expected here");
+
+            if (extLast)
+                extLast = extLast->next = ext;
+            else
+                extFirst = extLast = ext;
+
         }
-
-        if (S_tkn.kind == S_RBRACKET)
-            S_nextToken();
-        else
-            EM_error (S_tkn.pos, "] expected here");
-
-        td->arrayDims = adFirst;
-    }
-    else
-    {
-        while (S_tkn.kind == S_ASTERISK)
+        else if (S_tkn.kind == S_ASTERISK)
         {
-            td->numPointers++;
+            IR_typeDesignatorExt ext = IR_TypeDesignatorExt (S_tkn.pos, IR_tdExtPointer);
+            if (extLast)
+                extLast = extLast->next = ext;
+            else
+                extFirst = extLast = ext;
             S_nextToken();
         }
+        else
+            break;
     }
+
+    td->exts = extFirst;
 
     return td;
 }
@@ -1019,7 +1039,7 @@ static IR_expression _expression (void)
 }
 
 /*
- * local_variable_declarator ::= identifier [ '=' (expression | 'ref' variable_reference | array_initializer) ]
+ * local_variable_declarator ::= identifier [ '[' expression { ',' expression } ']' ] [ '=' (expression | 'ref' variable_reference | array_initializer) ]
  */
 
 static bool _local_variable_declarator (IR_typeDesignator td, IR_namespace names)
@@ -1032,9 +1052,39 @@ static bool _local_variable_declarator (IR_typeDesignator td, IR_namespace names
 
     S_symbol id  = S_tkn.u.sym;
     S_pos    pos = S_tkn.pos;
+
+    IR_variable v = IR_Variable (pos, id, td, /*initExpr=*/NULL);
+
     S_nextToken();
 
-    IR_expression initExpr = NULL;
+    if (S_tkn.kind == S_LBRACKET)
+    {
+        S_nextToken();
+
+        td = IR_TypeDesignator (td->name);
+        v->td = td;
+        td->exts = IR_TypeDesignatorExt (S_tkn.pos, IR_tdExtArray);
+        IR_expression dim = _expression();
+        if (!dim)
+            return EM_error (td->exts->pos, "local variable declarator: dimension expression expected here.");
+        td->exts->dims[td->exts->numDims++] = dim;
+
+        while (S_tkn.kind == S_COMMA)
+        {
+            S_nextToken();
+            dim = _expression();
+            if (!dim)
+                return EM_error (td->exts->pos, "local variable declarator: dimension expression expected here.");
+            td->exts->dims[td->exts->numDims++] = dim;
+        }
+
+        if (S_tkn.kind != S_RBRACKET)
+        {
+            EM_error (S_tkn.pos, "local variable declarator: ] expected here");
+            return false;
+        }
+        S_nextToken();
+    }
 
     if (S_tkn.kind == S_EQUALS)
     {
@@ -1051,14 +1101,12 @@ static bool _local_variable_declarator (IR_typeDesignator td, IR_namespace names
                 EM_error (S_tkn.pos, "local variable declarator: sorry, array initializers are not supported yet.");
                 return false;
             default:
-                initExpr = _expression ();
-                if (!initExpr)
+                v->initExp = _expression ();
+                if (!v->initExp)
                     return false;
 
         }
     }
-
-    IR_variable v = IR_Variable (pos, id, td, initExpr);
 
     IR_namesAddVariable (names, v);
     return true;
