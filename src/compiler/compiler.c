@@ -333,21 +333,28 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                 switch (c->ty->kind)
                                 {
                                     case Ty_boolean:
-                                    case Ty_byte:
-                                    case Ty_sbyte:
-                                        // FIXME AS_assembleData8 (obj->dataSeg, c->u.b);
                                         assert(false);
                                         break;
+                                    case Ty_byte:
+                                        AS_assembleData8 (obj->dataSeg, c->u.u);
+                                        break;
+                                    case Ty_sbyte:
+                                        AS_assembleData8 (obj->dataSeg, c->u.i);
+                                        break;
                                     case Ty_uint16:
+                                        AS_assembleData16 (obj->dataSeg, c->u.u);
+                                        break;
                                     case Ty_int16:
                                         AS_assembleData16 (obj->dataSeg, c->u.i);
                                         break;
                                     case Ty_int32:
+                                        AS_assembleData32 (obj->dataSeg, c->u.i);
+                                        break;
                                     case Ty_uint32:
                                     case Ty_pointer:
                                     case Ty_reference:
                                     // FIXME case Ty_any:
-                                        AS_assembleData32 (obj->dataSeg, c->u.i);
+                                        AS_assembleData32 (obj->dataSeg, c->u.u);
                                         break;
                                     case Ty_single:
                                         AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));
@@ -356,8 +363,8 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                     //case Ty_string:
                                     //    AS_assembleDataString (obj->dataSeg, c->u.s);
                                     //    break;
-                                    case Ty_array:
-                                    //case Ty_darray:
+                                    //case Ty_array:
+                                    case Ty_darray:
                                     case Ty_class:
                                     case Ty_interface:
                                     //case Ty_record:

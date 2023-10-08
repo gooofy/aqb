@@ -27,7 +27,7 @@ static void _writeStubTyRef (FILE *cstubf, IR_type ty)
         // FIXME case Ty_any       : fprintf (cstubf, "intptr_t "); break;
         //case Ty_forwardPtr: fprintf (cstubf, ""); break;
         //case Ty_procPtr   : fprintf (cstubf, ""); break;
-        case Ty_class     : fprintf (cstubf, "%s ", IR_name2string(ty->u.cls.name, /*underscoreSeparator=*/true)); break;
+        case Ty_class     : fprintf (cstubf, "%s ", IR_name2string(ty->u.cls.name, "_")); break;
         //case Ty_interface     : fprintf (cstubf, "intptr_t ** ", S_name(ty->u.interface.name)); break;
         // FIXME case Ty_interface     : fprintf (cstubf, "intptr_t ** "); break;
         //case Ty_toLoad    : fprintf (cstubf, ""); break;
@@ -53,7 +53,7 @@ static void _writeStubTypedefsFlat (FILE *cstubf, IR_definition defs)
         switch (ty->kind)
         {
             // FIXME case Ty_record    : fprintf (cstubf, "typedef struct %s_ %s;\n", S_name(ty->u.record.name), S_name(ty->u.record.name)); break;
-            case Ty_class     : fprintf (cstubf, "typedef struct %s_ %s;\n", IR_name2string(ty->u.cls.name, true), IR_name2string(ty->u.cls.name, true)); break;
+            case Ty_class     : fprintf (cstubf, "typedef struct %s_ %s;\n", IR_name2string(ty->u.cls.name, "_"), IR_name2string(ty->u.cls.name, "_")); break;
             case Ty_interface : assert (false); break; // FIXME fprintf (cstubf, "typedef void %s;\n", S_name(ty->u.interface.name)); break;
             default:
                 continue;
@@ -81,7 +81,7 @@ static void _writeStubDeclClass (FILE *cstubf, IR_type ty)
 {
     assert (ty->kind == Ty_class);
 
-    fprintf (cstubf, "struct %s_\n", IR_name2string(ty->u.cls.name, true));
+    fprintf (cstubf, "struct %s_\n", IR_name2string(ty->u.cls.name, "_"));
     fprintf (cstubf, "{\n");
 
     _writeStubDeclClassRec (cstubf, ty);
@@ -176,12 +176,12 @@ static void _writeFormal (FILE *cstubf, IR_formal formal)
 
 static void _writeStubSpecial (FILE *cstubf, IR_type tyCls, bool writeBody, char *methodName)
 {
-    fprintf (cstubf, "VOID _%s___%s (%s *this, System_GC *gc)", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), methodName, IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true));
+    fprintf (cstubf, "VOID _%s___%s (%s *this, System_GC *gc)", IR_name2string(tyCls->u.cls.name, "_"), methodName, IR_name2string(tyCls->u.cls.name, "_"));
 
     if (writeBody)
     {
         fprintf (cstubf, "\n{\n");
-        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s %s\");\n", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), methodName);
+        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s %s\");\n", IR_name2string(tyCls->u.cls.name, "_"), methodName);
         fprintf (cstubf, "}\n\n");
     }
     else
@@ -209,7 +209,7 @@ static void _writeStubMethod (FILE *cstubf, IR_type tyCls, IR_proc proc, bool wr
     if (writeBody)
     {
         fprintf (cstubf, "\n{\n");
-        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), S_name(proc->id));
+        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", IR_name2string(tyCls->u.cls.name, "_"), S_name(proc->id));
 
         if (proc->returnTy && proc->returnTy)
         {

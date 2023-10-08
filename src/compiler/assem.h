@@ -393,6 +393,7 @@ bool               AS_assembleString     (AS_object  o, Temp_label label, string
 void               AS_assembleDataAlign2 (AS_object  o);
 bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt, IR_type ty);
 void               AS_assembleDataFill   (AS_segment seg, uint32_t size);
+void               AS_assembleData8      (AS_segment seg, uint8_t  data);
 void               AS_assembleData16     (AS_segment seg, uint16_t data);
 void               AS_assembleData32     (AS_segment seg, uint32_t data);
 void               AS_assembleDataString (AS_segment seg, string data);

@@ -20,6 +20,15 @@ namespace System
         public extern virtual int GetHashCode ();
     }
 
+    // FIXME: the C# definition of System.Type is incomplete! see _urt.h for the complete definition
+    //public abstract partial class Type : System.Reflection.MemberInfo, System.Reflection.IReflect
+    public class Type
+    {
+        private uint  _kind;
+        private uint  _size;
+        private char *_name;
+    }
+
     //public sealed partial class String : IComparable, IEnumerable, IConvertible
     public class String
     {
@@ -36,6 +45,12 @@ namespace System
         private bool     _owned;   // true -> will DEALLOCATE() _str in finalizer
     }
 
+    //public abstract partial class Array : System.Collections.ICollection, System.Collections.IEnumerable, System.Collections.IList, System.Collections.IStructuralComparable, System.Collections.IStructuralEquatable, System.ICloneable
+    public class Array
+    {
+        public extern static Array CreateInstance(Type elementType, int length);
+    }
+
     public static class Console
     {
         public extern static void WriteLine(string value);
@@ -46,6 +61,7 @@ namespace System
     {
         public extern static void _MarkBlack (Object *obj);
     }
+
 }
 
 namespace System.Diagnostics

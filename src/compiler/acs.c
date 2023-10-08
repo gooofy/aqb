@@ -244,6 +244,7 @@ int main (int argc, char *argv[])
     U_init();
     SYM_init();
     S_boot();
+    IR_boot();
     PA_boot();
     SEM_boot();
     OPT_init();

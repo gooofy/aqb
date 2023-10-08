@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     7
+#define SYM_VERSION     8
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -133,12 +133,11 @@ static void _serializeIRTypeRef (IR_type ty)
         case Ty_pointer:
             _serializeIRTypeRef (ty->u.pointer);
             break;
-        case Ty_array:
-            _serializeIRTypeRef (ty->u.array.elementType);
-            fwrite_u1(ty->u.array.numDims);
-            for (int i=0; i<ty->u.array.numDims; i++)
-                fwrite_u1(ty->u.array.dims[i]);
-            fwrite_u4(ty->u.array.uiSize);
+        case Ty_darray:
+            _serializeIRTypeRef (ty->u.darray.elementType);
+            fwrite_u1(ty->u.darray.numDims);
+            for (int i=0; i<ty->u.darray.numDims; i++)
+                fwrite_u1(ty->u.darray.dims[i]);
             break;
         default:
             assert(false); // FIXME
@@ -416,12 +415,11 @@ static IR_type _deserializeIRTypeRef (void)
         case Ty_pointer:
             ty->u.pointer = _deserializeIRTypeRef ();
             break;
-        case Ty_array:
-            ty->u.array.elementType = _deserializeIRTypeRef ();
-            ty->u.array.numDims = fread_u1();
-            for (int i=0; i<ty->u.array.numDims; i++)
-                ty->u.array.dims[i] = fread_u1();
-            ty->u.array.uiSize = fread_u4();
+        case Ty_darray:
+            ty->u.darray.elementType = _deserializeIRTypeRef ();
+            ty->u.darray.numDims = fread_u1();
+            for (int i=0; i<ty->u.darray.numDims; i++)
+                ty->u.darray.dims[i] = fread_u1();
             break;
         default:
             assert(false);
@@ -607,7 +605,7 @@ static void _dumpIRDefinition (IR_definition def)
 {
     LOG_printf (LOG_INFO, "    %s %s\n",
                 def->kind == IR_defType ? "type" : "proc",
-                IR_name2string (IR_NamespaceName (def->names, def->id, S_noPos), /*underscoreSeparator=*/false));
+                IR_name2string (IR_NamespaceName (def->names, def->id, S_noPos), "."));
 }
 
 IR_assembly IR_loadAssembly (S_symbol name, IR_namespace names_root)

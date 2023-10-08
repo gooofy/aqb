@@ -122,8 +122,6 @@ CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, IR_formal formals, bool statc);
 void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, IR_type ty, int offset, Temp_label label);
 CG_frag         CG_genGCFrameDesc   (CG_frame frame);
-void            CG_genTypeDesc      (IR_type ty);
-Temp_label      CG_getTypeDescLabel (IR_type ty);
 Temp_label      CG_fdTableLabel     (string module_name);
 
 void            CG_ConstItem        (CG_item *item, IR_const c);

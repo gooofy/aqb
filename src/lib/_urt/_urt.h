@@ -150,7 +150,9 @@ extern BOOL     _do_resume;     // set by RESUME NEXT
  ********************************************************************/
 
 typedef struct System_Object_            System_Object;
+typedef struct System_Type_              System_Type;
 typedef struct System_String_            System_String;
+typedef struct System_Array_             System_Array;
 typedef struct System_Console_           System_Console;
 typedef struct System_Diagnostics_Debug_ System_Diagnostics_Debug;
 typedef struct System_GC_                System_GC;
@@ -175,6 +177,27 @@ LONG           _System_Object_GetHashCode (System_Object *this);
 
 BOOL           __instanceof              (System_Object *obj, ULONG **td);
 
+// FIXME: the C# definition of this type is incomplete!
+// NOTE: System.Type is used by the garbage collector to find pointers inside objects
+//       ensure this struct's layout matches _exactly_ the static data frags produced by the compiler!
+struct System_Type_
+{
+    ULONG         **_vTablePtr;
+    System_Object **__gc_next;
+    System_Object **__gc_prev;
+    ULONG           __gc_size;
+    UBYTE           __gc_color;
+
+    ULONG           _kind;
+    ULONG           _size;
+
+    // interface+class only
+    char           *_name;
+    _urt_field_t   *_fields;
+};
+
+VOID         _System_Type___gc_scan (System_Type *this, System_GC *gc);
+
 struct System_String_
 {
     ULONG         **_vTablePtr;
@@ -191,6 +214,18 @@ struct System_String_
 VOID           _System_String___init     (System_String *this);
 VOID           _System_String___gc_scan  (System_String *this, System_GC *gc);
 System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
+
+struct System_Array_
+{
+    ULONG         **_vTablePtr;
+    System_Object **__gc_next;
+    System_Object **__gc_prev;
+    ULONG           __gc_size;
+    UBYTE           __gc_color;
+};
+
+VOID _System_Array___gc_scan (System_Array *this, System_GC *gc);
+System_Array *_System_Array_CreateInstance (System_Type *elementType, LONG length);
 
 struct System_Console_
 {

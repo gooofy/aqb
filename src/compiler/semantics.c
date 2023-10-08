@@ -43,6 +43,7 @@ static S_symbol S_System;
 static S_symbol S_String;
 static S_symbol S_gc;
 static S_symbol S_GC;
+static S_symbol S_Array;
 static S_symbol S__MarkBlack;
 static S_symbol S_Assert;
 static S_symbol S_Debug;
@@ -51,9 +52,10 @@ static S_symbol S_Diagnostics;
 //static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
-// System.String / System.GC type caching
-static IR_type _g_tyString   = NULL;
-static IR_type _g_tySystemGC = NULL;
+// System.String / System.GC / System.Array type caching
+static IR_type _g_tyString      = NULL;
+static IR_type _g_tySystemGC    = NULL;
+static IR_type _g_tySystemArray = NULL;
 
 static IR_type _getStringType(void)
 {
@@ -73,6 +75,16 @@ static IR_type _getSystemGCType(void)
         assert (_g_tySystemGC);
     }
     return _g_tySystemGC;
+}
+
+static IR_type _getSystemArrayType(void)
+{
+    if (!_g_tySystemArray)
+    {
+        _g_tySystemArray = IR_namesLookupType (_g_sys_names, S_Array);
+        assert (_g_tySystemArray);
+    }
+    return _g_tySystemArray;
 }
 
 static SEM_context _SEM_Context (SEM_context parent)
@@ -320,7 +332,7 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
 
     IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
     if (!entry || (entry->kind != IR_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/false), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
 
     IR_method method = entry->u.method;
     res->kind = SIK_cg;
@@ -351,6 +363,77 @@ static bool _coercion (IR_type tyA, IR_type tyB, IR_type *tyRes)
     return false;
 }
 
+static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context context)
+{
+    if (!v->ty)
+        v->ty = _elaborateType (v->td, context, names);
+
+    if (TAB_look (context->entries, v->id))
+        return EM_error(v->pos, "Symbol %s is already declared in this scope.", S_name(v->id));
+
+    SEM_item *se = _SEM_Item (SIK_cg);
+    CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, v->ty);
+    TAB_enter (context->entries, v->id, se);
+
+    /*
+     * run constructor / assign initial value
+     */
+
+    IR_type ty = v->ty;
+    switch (ty->kind)
+    {
+        case Ty_unresolved:
+            assert(false);
+            break;
+        case Ty_boolean:
+        case Ty_byte:
+        case Ty_sbyte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+        case Ty_uint32:
+        case Ty_single:
+        case Ty_double:
+            if (v->initExp)
+            {
+                S_pos pos = v->initExp->pos;
+                SEM_item initExp;
+                if (!_elaborateExpression (v->initExp, context, &initExp))
+                    return EM_error(pos, "failed to elaborate init expression");
+                if (initExp.kind != SIK_cg)
+                    return EM_error(pos, "init expression expected");
+                if (!_convertTy(&initExp.u.cg, pos, v->ty, /*explicit=*/false))
+                    return EM_error(pos, "initializer type mismatch");
+
+                CG_transAssignment (context->code, pos, context->frame, &se->u.cg, &initExp.u.cg);
+            }
+            break;
+
+        case Ty_class:
+        case Ty_interface:
+        case Ty_reference:
+        case Ty_pointer:
+            assert(false); // FIXME
+            break;
+
+        case Ty_darray:
+        {
+            assert (ty->u.darray.numDims==1); // FIXME: implement multi-dim array support
+
+            assert(false); // FIXME
+            //CG_itemList args = CG_ItemList();
+            //CG_itemListNode n = CG_itemListAppend(args);
+            //CG_StringItem (context->code, expr->pos, &n->item, expr->u.stringLiteral);
+            //n = CG_itemListAppend(args);
+            //CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
+
+            //return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, context->code, context->frame, res);
+        }
+    }
+
+    return true;
+}
+
 static void _elaborateNames (IR_namespace names, SEM_context context)
 {
     for (IR_namesEntry e = names->entriesFirst; e; e=e->next)
@@ -364,40 +447,8 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
                 assert(false); // FIXME
                 break;
             case IR_neVar:
-            {
-                IR_variable v = e->u.var;
-                if (!v->ty)
-                    v->ty = _elaborateType (v->td, context, names);
-                SEM_item *se = _SEM_Item (SIK_cg);
-                CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, v->ty);
-                TAB_enter (context->entries, v->id, se);
-
-                // FIXME: run constructor?
-
-                if (v->initExp)
-                {
-                    S_pos pos = v->initExp->pos;
-                    SEM_item initExp;
-                    if (!_elaborateExpression (v->initExp, context, &initExp))
-                    {
-                        EM_error(pos, "failed to elaborate init expression");
-                        continue;
-                    }
-                    if (initExp.kind != SIK_cg)
-                    {
-                        EM_error(pos, "init expression expected");
-                        continue;
-                    }
-                    if (!_convertTy(&initExp.u.cg, pos, v->ty, /*explicit=*/false))
-                    {
-                        EM_error(pos, "initializer type mismatch");
-                        continue;
-                    }
-
-                    CG_transAssignment (context->code, pos, context->frame, &se->u.cg, &initExp.u.cg);
-                }
+                _varDeclaration (e->u.var, names, context);
                 break;
-            }
         }
     }
 }
@@ -545,7 +596,7 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
                 return true;
             }
             EM_error (expr->pos, "failed to resolve %s",
-                      IR_name2string (IR_NamespaceName(parent.u.names, id, expr->pos), /*underscoreSeparator=*/false));
+                      IR_name2string (IR_NamespaceName(parent.u.names, id, expr->pos), "."));
             return false;
         }
         case SIK_type:
@@ -1141,7 +1192,7 @@ static void _assembleVTables (IR_type tyCls)
     IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
     formals->ty = tyClsRef;
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
-    string clsLabel = IR_name2string (tyCls->u.cls.name, /*underscoreSeparator=*/true);
+    string clsLabel = IR_name2string (tyCls->u.cls.name, "_");
     Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));
     Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___init_exit", clsLabel));
 
@@ -1162,7 +1213,7 @@ static void _assembleVTables (IR_type tyCls)
 
     _assembleClassVTable (vTableFrag, tyCls);
     // set up vTable special entries
-    CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel           (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
+    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel           (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
     CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos, clsLabel), VTABLE_SPECIAL_ENTRY_GCSCAN);
 
 
@@ -1356,6 +1407,77 @@ static void _assembleVTables (IR_type tyCls)
                      /*expt=*/true);
 }
 
+static void _genSystemType (IR_type ty)
+{
+    Temp_label label = IR_genSystemTypeLabel (ty);
+    CG_frag    frag  = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+
+    // struct System_Type_
+    // {
+    //    ULONG         **_vTablePtr;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    System_Object **__gc_next;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    System_Object **__gc_prev;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    ULONG           __gc_size;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    UBYTE           __gc_color;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeByte(), 0));
+
+    //    ULONG           _kind;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), ty->kind));
+    //    ULONG           _size;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), IR_typeSize(ty)));
+
+    // FIXME
+#if 0
+    switch (ty->kind)
+    {
+        case Ty_class:
+        {
+
+            // base type
+            if (ty->u.cls.baseTy)
+            {
+                Temp_label baseLabel = IR_genSystemTypeLabel (ty->u.cls.baseTy);
+                CG_dataFragAddPtr (descFrag, baseLabel);
+            }
+            else
+            {
+                CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
+            }
+
+            // interfaces
+            for (IR_implements i=ty->u.cls.implements; i; i=i->next)
+            {
+                Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
+                CG_dataFragAddPtr (descFrag, intfLabel);
+            }
+            CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
+            break;
+        }
+        case Ty_interface:
+        {
+            assert(false); // FIXME
+            //Temp_label label = IR_genSystemTypeLabel (ty);
+            //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+
+            //// interfaces
+            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
+            //{
+            //    Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
+            //    CG_dataFragAddPtr (descFrag, intfLabel);
+            //}
+            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
+            break;
+        }
+        default:
+            assert(false);
+    }
+#endif
+}
+
 static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
@@ -1424,6 +1546,12 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
                 assert(false); break; // FIXME
         }
     }
+
+    /*
+     * generate type descriptor
+     */
+
+    _genSystemType (tyCls);
 }
 
 static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
@@ -1516,8 +1644,9 @@ static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context con
         }
         case IR_tdExtArray:
         {
-            t = IR_TypeArray (ext->pos, ext->numDims, t);
-            t->u.array.uiSize = IR_typeSize (t->u.array.elementType);
+            t = IR_TypeDArray (ext->pos, ext->numDims, t);
+            t->u.darray.tyCArray = _getSystemArrayType();
+            // FIXME: remove t->u.array.uiSize = IR_typeSize (t->u.array.elementType);
             for (int i=0; i<ext->numDims; i++)
             {
                 SEM_item dim;
@@ -1534,9 +1663,10 @@ static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context con
                 }
 
                 int32_t d = IR_constGetI32 (ext->dims[i]->pos, dim.u.cg.u.c);
-                t->u.array.dims[i] = d;
-                t->u.array.uiSize *= d;
+                t->u.darray.dims[i] = d;
+                // FIXME: remove t->u.array.uiSize *= d;
             }
+            _genSystemType (t);
             break;
         }
     }
@@ -1558,6 +1688,11 @@ static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_nam
     if (!name->first->next)
     {
         t = _namesResolveType (name->pos, names, name->first->sym);
+        if (!t)
+        {
+            EM_error (name->pos, "failed to resolve type %s", IR_name2string (name, "."));
+            return NULL;
+        }
     }
     else
     {
@@ -1743,15 +1878,6 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
             CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
         }
 
-        // generate type descriptors
-
-        for (IR_definition def=assembly->def_first; def; def=def->next)
-        {
-            if (def->kind != IR_defType)
-                continue;
-            CG_genTypeDesc (def->u.ty);
-        }
-
         // generate toplevel fd table:
 
         if (is_main)
@@ -1777,5 +1903,6 @@ void SEM_boot(void)
     S_Assert      = S_Symbol("Assert");
     S_Debug       = S_Symbol("Debug");
     S_Diagnostics = S_Symbol("Diagnostics");
+    S_Array       = S_Symbol("Array");
 }
 

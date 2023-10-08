@@ -2344,6 +2344,11 @@ void AS_assembleDataFill (AS_segment seg, uint32_t size)
         emit_u1(seg, 0);
 }
 
+void AS_assembleData8 (AS_segment seg, uint8_t data)
+{
+    emit_u1(seg, data);
+}
+
 void AS_assembleData16 (AS_segment seg, uint16_t data)
 {
     emit_u2(seg, data);

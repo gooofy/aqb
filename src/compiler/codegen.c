@@ -201,64 +201,6 @@ void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, IR_type ty, int offset, T
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo ends.\n");
 }
 
-Temp_label CG_getTypeDescLabel (IR_type ty)
-{
-    Temp_label label = ty->tdLabel;
-    if (!label)
-    {
-        switch (ty->kind)
-        {
-            //case Ty_record:
-            //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-            //                                                    S_name(ty->mod->name),
-            //                                                    S_name(ty->u.record.name)));
-            //    break;
-            //case Ty_interface:
-            //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-            //                                                    S_name(ty->mod->name),
-            //                                                    S_name(ty->u.interface.name)));
-            //    break;
-            case Ty_class:
-                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s",
-                                                                IR_name2string (ty->u.cls.name, /*underscoreSeparator=*/true)));
-                break;
-            case Ty_reference:
-                assert(false); // FIXME
-                //if (ty->u.pointer->kind != Ty_reference && ty->u.pointer->mod)
-                //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%s",
-                //                                                    S_name(ty->mod->name),
-                //                                                    S_name(CG_getTypeDescLabel (ty->u.pointer))));
-                //else
-                //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%08x",
-                //                                                    S_name(ty->mod->name),
-                //                                                    ty->uid));
-                break;
-
-            case Ty_array:
-            //case Ty_darray:
-            //case Ty_reference:
-            //case Ty_procPtr:
-            //case Ty_string:
-            //    CG_dataFragAddPtr (descFrag, CG_getTypeDescLabel (ty));
-                assert (false); // FIXME
-                break;
-
-            //case Ty_forwardPtr:
-            //case Ty_toLoad:
-            //case Ty_prc:
-            //    assert(false);
-            //    break;
-            default:
-                assert(false); // FIXME
-                //ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%08x",
-                //                                                S_name(ty->mod->name),
-                //                                                ty->uid));
-                break;
-        }
-    }
-    return label;
-}
-
 #define TYPEREF_FLAG_LABEL   0x8000
 
 #if 0
@@ -335,56 +277,6 @@ CG_frag CG_genGCFrameDesc (CG_frame frame)
     }
     CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt16(), -1));
     return descFrag;
-}
-
-void CG_genTypeDesc (IR_type ty)
-{
-    // only class and interface types need type descriptors, for now
-    switch (ty->kind)
-    {
-        case Ty_class:
-        {
-            Temp_label label = CG_getTypeDescLabel (ty);
-            CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-
-            // base type
-            if (ty->u.cls.baseTy)
-            {
-                Temp_label baseLabel = CG_getTypeDescLabel (ty->u.cls.baseTy);
-                CG_dataFragAddPtr (descFrag, baseLabel);
-            }
-            else
-            {
-                CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
-            }
-
-            // interfaces
-            for (IR_implements i=ty->u.cls.implements; i; i=i->next)
-            {
-                Temp_label intfLabel = CG_getTypeDescLabel (i->intf);
-                CG_dataFragAddPtr (descFrag, intfLabel);
-            }
-            CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
-            break;
-        }
-        case Ty_interface:
-        {
-            assert(false); // FIXME
-            //Temp_label label = CG_getTypeDescLabel (ty);
-            //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-
-            //// interfaces
-            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
-            //{
-            //    Temp_label intfLabel = CG_getTypeDescLabel (i->intf);
-            //    CG_dataFragAddPtr (descFrag, intfLabel);
-            //}
-            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
-            break;
-        }
-        default:
-            return;
-    }
 }
 
 void CG_ConstItem (CG_item *item, IR_const c)
@@ -511,8 +403,8 @@ static enum Temp_w CG_tySize(IR_type ty)
         //case Ty_procPtr:
         //case Ty_any:
             return Temp_w_L;
-        case Ty_array:
-        //case Ty_darray:
+        //case Ty_sarray:
+        case Ty_darray:
         case Ty_class:
         case Ty_interface:
         //case Ty_record:
@@ -4772,8 +4664,8 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         //case Ty_string:
                         //    fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
                         //    break;
-                        case Ty_array:
-                        //case Ty_darray:
+                        //case Ty_sarray:
+                        case Ty_darray:
                         case Ty_class:
                         case Ty_interface:
                         //case Ty_record:

@@ -162,9 +162,8 @@ struct IR_proc_
 // FIXME
 #define MAX_ARRAY_DIMS                 5
 
-struct IR_type_
-{
-    enum { Ty_unresolved,   //  0 also used when loading assemblies
+typedef enum {
+           Ty_unresolved,   //  0 also used when loading assemblies
 
            Ty_boolean,      //  1
            Ty_byte,         //  2
@@ -182,17 +181,22 @@ struct IR_type_
            Ty_reference,    // 12 a reference is a pointer to a class or interface that is tracked by our GC
            Ty_pointer,      // 13
 
-           Ty_array,        // 14 
-           //Ty_darray,       // 15
+           Ty_darray,       // 14
+           //Ty_sarray,       // 15
 
            //Ty_record,       // 16
 
            //Ty_any,          // 17
            //Ty_procPtr,      // 18
            //Ty_prc           // 19
-           } kind;
-    S_pos pos;
-    //bool  elaborated;
+           } IR_TypeKind;
+
+struct IR_type_
+{
+    IR_TypeKind kind;
+    S_pos       pos;
+    Temp_label  systemTypeLabel; // System.Type instance corresponding to this type
+    string      systemTypeDesc;  // same as systemTypeLabel but without the __td_ prefix
     union
     {
         IR_type                                                               pointer;
@@ -213,9 +217,12 @@ struct IR_type_
         struct {int               numDims;
                 int               dims[MAX_ARRAY_DIMS];
                 IR_type           elementType;
-                uint32_t          uiSize;                                   } array;
+                uint32_t          uiSize;                                   } sarray;
+        struct {int               numDims;
+                int               dims[MAX_ARRAY_DIMS];
+                IR_type           elementType;
+                IR_type           tyCArray;                                 } darray;
     } u;
-    Temp_label tdLabel; // type descriptor label (caching only)
 };
 
 // type designators are produced at parsing time when types cannot be resolved
@@ -362,7 +369,7 @@ IR_definition      IR_DefinitionProc     (IR_namespace names, S_symbol id, IR_pr
 
 IR_name            IR_Name               (S_symbol id, S_pos pos);
 IR_name            IR_NamespaceName      (IR_namespace names, S_symbol id, S_pos pos);
-string             IR_name2string        (IR_name name, bool underscoreSeparator);
+string             IR_name2string        (IR_name name, string separator);
 void               IR_nameAddSym         (IR_name name, S_symbol id);
 IR_symNode         IR_SymNode            (S_symbol id);
 
@@ -387,10 +394,11 @@ bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol id);
-IR_type            IR_TypeArray          (S_pos pos, int numDims, IR_type elementType);
+IR_type            IR_TypeDArray         (S_pos pos, int numDims, IR_type elementType);
 IR_type            IR_getReference       (S_pos pos, IR_type ty);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
+Temp_label         IR_genSystemTypeLabel (IR_type ty);
 
 IR_typeDesignator         IR_TypeDesignator         (IR_name name);
 IR_typeDesignatorExt      IR_TypeDesignatorExt      (S_pos pos, IR_tdExtKind kind);
@@ -440,6 +448,7 @@ IR_type            IR_TypeUInt32Ptr      (void);
 IR_type            IR_TypeVTablePtr      (void);
 
 void               IR_init               (void);
+void               IR_boot               (void);
 
 #endif
 
