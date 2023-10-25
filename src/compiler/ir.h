@@ -400,6 +400,9 @@ IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
 Temp_label         IR_genSystemTypeLabel (IR_type ty);
 
+void               IR_registerType       (IR_type ty);
+TAB_iter           IR_iterateTypes       (void);        // string (System.Type label) -> IR_type
+
 IR_typeDesignator         IR_TypeDesignator         (IR_name name);
 IR_typeDesignatorExt      IR_TypeDesignatorExt      (S_pos pos, IR_tdExtKind kind);
 

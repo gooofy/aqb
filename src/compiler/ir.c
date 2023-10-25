@@ -5,6 +5,7 @@ static S_symbol S_Main;
 
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 static TAB_table   _g_refCache; // IR_type -> IR_type
+static TAB_table   _g_typeReg ; // string (System.Type label) -> IR_type
 
 void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
 {
@@ -322,7 +323,7 @@ static string _genSystemTypeDesc (IR_type ty)
                 break;
 
             case Ty_reference:
-                ty->systemTypeDesc = td = strprintf(UP_frontend, "ref_%s", _genSystemTypeDesc (ty->u.pointer));
+                ty->systemTypeDesc = td = strprintf(UP_frontend, "ref_%s", _genSystemTypeDesc (ty->u.ref));
                 break;
 
             case Ty_darray:
@@ -361,6 +362,16 @@ Temp_label IR_genSystemTypeLabel (IR_type ty)
     if (!label)
         ty->systemTypeLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s", _genSystemTypeDesc (ty)));
     return label;
+}
+
+void IR_registerType (IR_type ty)
+{
+    TAB_enter (_g_typeReg, IR_genSystemTypeLabel (ty), ty);
+}
+
+TAB_iter IR_iterateTypes (void)
+{
+    return TAB_Iter (_g_typeReg);
 }
 
 IR_typeDesignator IR_TypeDesignator (IR_name name)
@@ -877,6 +888,21 @@ void IR_init(void)
 {
     _g_ptrCache = TAB_empty(UP_ir);
     _g_refCache = TAB_empty(UP_ir);
+    _g_typeReg  = TAB_empty(UP_ir);
+
+    IR_registerType (_tyBoolean);
+    IR_registerType (_tyByte   );
+    IR_registerType (_tySByte  );
+    IR_registerType (_tyInt16  );
+    IR_registerType (_tyUInt16 );
+    IR_registerType (_tyInt32  );
+    IR_registerType (_tyUInt32 );
+    IR_registerType (_tySingle );
+    IR_registerType (_tyDouble );
+
+    IR_registerType (_tyUBytePtr  );
+    IR_registerType (_tyUInt32Ptr );
+    IR_registerType (_tyVTablePtr );
 }
 
 void IR_boot(void)

@@ -4463,10 +4463,10 @@ static void writeASMProc(FILE *out, CG_frag frag, AS_dialect dialect)
         {
             case AS_dialect_gas:
             case AS_dialect_vasm:
-                fprintf(out, ".globl %s\n\n", S_name(label));
+                fprintf(out, "\n.globl %s\n", S_name(label));
                 break;
             case AS_dialect_ASMPro:
-                fprintf(out, "    XDEF %s\n\n", S_name(label));
+                fprintf(out, "\n    XDEF %s\n", S_name(label));
                 break;
             default:
                 assert(false);
@@ -4630,7 +4630,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_boolean:
                         case Ty_byte:
                         case Ty_sbyte:
-                            fprintf(out, "    dc.b %d\n", c->u.b);
+                            fprintf(out, "    dc.b  %d\n", c->u.b);
                             break;
                         case Ty_uint16:
                         case Ty_int16:

@@ -376,6 +376,8 @@ int main (int argc, char *argv[])
     atexit (deinit);
     LOG_init (log_cb);
 
+    IR_init();
+
     IR_namespace names_root = _bootstrap_root_names();
 
     for (OPT_pathList assemblies = OPT_assembliesGet(); assemblies; assemblies=assemblies->next)

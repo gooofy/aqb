@@ -156,6 +156,7 @@ typedef struct System_Array_             System_Array;
 typedef struct System_Console_           System_Console;
 typedef struct System_Diagnostics_Debug_ System_Diagnostics_Debug;
 typedef struct System_GC_                System_GC;
+typedef struct _urt_field_s              _urt_field_t;
 
 struct System_Object_
 {
@@ -191,9 +192,55 @@ struct System_Type_
     ULONG           _kind;
     ULONG           _size;
 
-    // interface+class only
-    char           *_name;
-    _urt_field_t   *_fields;
+    union
+    {
+        System_type                                          *pointer;
+        System_type                                          *ref;
+        struct {//char             *name;
+                System_type      *baseTy;
+                /*
+                 * flat array of interfaces and members follow beyond this point
+                 *
+                 * System_type *intf1;
+                 * System_type *intf2;
+                 *  ...
+                 * System_type *intfN;
+                 * NULL;
+                 *
+                 * ULONG        field1Offset;
+                 * System_Type *field1Type;
+                 * ULONG        field2Offset;
+                 * System_Type *field2Type;
+                 *  ...
+                 * ULONG        fieldNOffset;
+                 * System_Type *fieldNType;
+                 * NULL
+                 */                                        } cls;
+        struct {int               numDims;
+                System_type      *elementType;
+                /*
+                 * flat array of dimensions follows beyond this point
+                 *
+                 * int dim1
+                 * int dim2
+                 *  ...
+                 * int dimN
+                 * 0
+                 */                                        } sarray;
+        struct {int               numDims;
+                System_type      *elementType;
+                System_type      *cArrayType;
+                /*
+                 * flat array of dimensions follows beyond this point
+                 *
+                 * int dim1
+                 * int dim2
+                 *  ...
+                 * int dimN
+                 * 0
+                 */                                        } darray;
+    } u;
+
 };
 
 VOID         _System_Type___gc_scan (System_Type *this, System_GC *gc);

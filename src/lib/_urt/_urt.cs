@@ -8,8 +8,8 @@ namespace System
     {
 
         // GC support *DO NOT TOUCH!*
-        private Object *__gc_next;
-        private Object *__gc_prev;
+        private Object  __gc_next;
+        private Object  __gc_prev;
         private uint    __gc_size;
         private byte    __gc_color;
 

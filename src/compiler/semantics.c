@@ -38,12 +38,14 @@ struct SEM_item_
 };
 
 static S_symbol S_Create;
+static S_symbol S_CreateInstance;
 static S_symbol S_this;
 static S_symbol S_System;
 static S_symbol S_String;
 static S_symbol S_gc;
 static S_symbol S_GC;
 static S_symbol S_Array;
+static S_symbol S_Type;
 static S_symbol S__MarkBlack;
 static S_symbol S_Assert;
 static S_symbol S_Debug;
@@ -52,10 +54,11 @@ static S_symbol S_Diagnostics;
 //static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
-// System.String / System.GC / System.Array type caching
+// System.String / System.GC / System.Array / System.Type type caching
 static IR_type _g_tyString      = NULL;
 static IR_type _g_tySystemGC    = NULL;
 static IR_type _g_tySystemArray = NULL;
+static IR_type _g_tySystemType  = NULL;
 
 static IR_type _getStringType(void)
 {
@@ -75,6 +78,16 @@ static IR_type _getSystemGCType(void)
         assert (_g_tySystemGC);
     }
     return _g_tySystemGC;
+}
+
+static IR_type _getSystemType(void)
+{
+    if (!_g_tySystemType)
+    {
+        _g_tySystemType = IR_namesLookupType (_g_sys_names, S_Type);
+        assert (_g_tySystemType);
+    }
+    return _g_tySystemType;
 }
 
 static IR_type _getSystemArrayType(void)
@@ -368,18 +381,19 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
     if (!v->ty)
         v->ty = _elaborateType (v->td, context, names);
 
+    IR_type ty = v->ty;
+
     if (TAB_look (context->entries, v->id))
         return EM_error(v->pos, "Symbol %s is already declared in this scope.", S_name(v->id));
 
     SEM_item *se = _SEM_Item (SIK_cg);
-    CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, v->ty);
+    CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, ty);
     TAB_enter (context->entries, v->id, se);
 
     /*
      * run constructor / assign initial value
      */
 
-    IR_type ty = v->ty;
     switch (ty->kind)
     {
         case Ty_unresolved:
@@ -420,14 +434,16 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
         {
             assert (ty->u.darray.numDims==1); // FIXME: implement multi-dim array support
 
-            assert(false); // FIXME
-            //CG_itemList args = CG_ItemList();
-            //CG_itemListNode n = CG_itemListAppend(args);
-            //CG_StringItem (context->code, expr->pos, &n->item, expr->u.stringLiteral);
-            //n = CG_itemListAppend(args);
-            //CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
+            CG_itemList args = CG_ItemList();
 
-            //return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, context->code, context->frame, res);
+            CG_itemListNode n = CG_itemListAppend(args);
+            CG_HeapPtrItem (&n->item, ty->u.darray.elementType->systemTypeLabel, _getSystemType());
+            CG_loadVal (context->code, v->pos, context->frame, &n->item);
+
+            n = CG_itemListAppend(args);
+            CG_IntItem (&n->item, ty->u.darray.dims[0], IR_TypeInt32()); // length
+
+            return _transCallBuiltinMethod(v->pos, _getSystemArrayType()->u.ref, S_CreateInstance, args, context->code, context->frame, se);
         }
     }
 
@@ -1213,7 +1229,7 @@ static void _assembleVTables (IR_type tyCls)
 
     _assembleClassVTable (vTableFrag, tyCls);
     // set up vTable special entries
-    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel           (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
+    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel         (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
     CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos, clsLabel), VTABLE_SPECIAL_ENTRY_GCSCAN);
 
 
@@ -1407,77 +1423,6 @@ static void _assembleVTables (IR_type tyCls)
                      /*expt=*/true);
 }
 
-static void _genSystemType (IR_type ty)
-{
-    Temp_label label = IR_genSystemTypeLabel (ty);
-    CG_frag    frag  = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-
-    // struct System_Type_
-    // {
-    //    ULONG         **_vTablePtr;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
-    //    System_Object **__gc_next;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
-    //    System_Object **__gc_prev;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
-    //    ULONG           __gc_size;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
-    //    UBYTE           __gc_color;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeByte(), 0));
-
-    //    ULONG           _kind;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), ty->kind));
-    //    ULONG           _size;
-    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), IR_typeSize(ty)));
-
-    // FIXME
-#if 0
-    switch (ty->kind)
-    {
-        case Ty_class:
-        {
-
-            // base type
-            if (ty->u.cls.baseTy)
-            {
-                Temp_label baseLabel = IR_genSystemTypeLabel (ty->u.cls.baseTy);
-                CG_dataFragAddPtr (descFrag, baseLabel);
-            }
-            else
-            {
-                CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
-            }
-
-            // interfaces
-            for (IR_implements i=ty->u.cls.implements; i; i=i->next)
-            {
-                Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
-                CG_dataFragAddPtr (descFrag, intfLabel);
-            }
-            CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
-            break;
-        }
-        case Ty_interface:
-        {
-            assert(false); // FIXME
-            //Temp_label label = IR_genSystemTypeLabel (ty);
-            //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-
-            //// interfaces
-            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
-            //{
-            //    Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
-            //    CG_dataFragAddPtr (descFrag, intfLabel);
-            //}
-            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
-            break;
-        }
-        default:
-            assert(false);
-    }
-#endif
-}
-
 static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
@@ -1547,11 +1492,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         }
     }
 
-    /*
-     * generate type descriptor
-     */
-
-    _genSystemType (tyCls);
+    IR_registerType (tyCls); // ensure System.Type typedescriptor gets generated if this is the main module
 }
 
 static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
@@ -1666,7 +1607,7 @@ static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context con
                 t->u.darray.dims[i] = d;
                 // FIXME: remove t->u.array.uiSize *= d;
             }
-            _genSystemType (t);
+            IR_registerType (t); // ensure System.Type typedescriptor gets generated if this is the main module
             break;
         }
     }
@@ -1816,6 +1757,114 @@ IR_member IR_namesResolveMember (IR_name name, IR_using usings)
     //}
 }
 
+static void _genSystemType (IR_type ty)
+{
+    Temp_label label = IR_genSystemTypeLabel (ty);
+    CG_frag    frag  = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+
+    // struct System_Type_
+    // {
+    //    ULONG         **_vTablePtr;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    System_Object **__gc_next;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    System_Object **__gc_prev;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    ULONG           __gc_size;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+    //    UBYTE           __gc_color;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeByte(), 0));
+
+    //    ULONG           _kind;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), ty->kind));
+    //    ULONG           _size;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), IR_typeSize(ty)));
+
+    switch (ty->kind)
+    {
+        case Ty_boolean:
+        case Ty_byte:
+        case Ty_sbyte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+        case Ty_uint32:
+        case Ty_single:
+        case Ty_double:
+            break;
+        case Ty_class:
+        {
+            // base type
+            if (ty->u.cls.baseTy)
+            {
+                Temp_label baseLabel = IR_genSystemTypeLabel (ty->u.cls.baseTy);
+                CG_dataFragAddPtr (frag, baseLabel);
+            }
+            else
+            {
+                CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+            }
+
+            // interfaces
+            for (IR_implements i=ty->u.cls.implements; i; i=i->next)
+            {
+                Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
+                CG_dataFragAddPtr (frag, intfLabel);
+            }
+            CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+
+            // members
+            for (IR_member member=ty->u.cls.members->first; member; member=member->next)
+            {
+                if (member->kind != IR_recField)
+                    continue;
+                CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), member->u.field.uiOffset));
+                Temp_label tyLabel = IR_genSystemTypeLabel (member->u.field.ty);
+                CG_dataFragAddPtr (frag, tyLabel);
+            }
+            CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
+            break;
+        }
+        case Ty_interface:
+        {
+            assert(false); // FIXME
+            //Temp_label label = IR_genSystemTypeLabel (ty);
+            //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+
+            //// interfaces
+            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
+            //{
+            //    Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
+            //    CG_dataFragAddPtr (descFrag, intfLabel);
+            //}
+            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
+            break;
+        }
+        case Ty_reference:
+        {
+            Temp_label tyLabel = IR_genSystemTypeLabel (ty->u.ref);
+            CG_dataFragAddPtr (frag, tyLabel);
+            break;
+        }
+        case Ty_pointer:
+        {
+            Temp_label tyLabel = IR_genSystemTypeLabel (ty->u.pointer);
+            CG_dataFragAddPtr (frag, tyLabel);
+            break;
+        }
+        case Ty_darray:
+        {
+            CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), ty->u.darray.numDims));
+            for (int i=0; i<ty->u.darray.numDims; i++)
+                CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), ty->u.darray.dims[i]));
+            CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), 0));
+            break;
+        }
+        default:
+            assert(false);
+    }
+}
+
 void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
     //_g_names_root = names_root;
@@ -1888,21 +1937,34 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
             CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->name)));
             CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0)); // end marker
         }
+
+        // generate System.Type.* type descriptors for all types that we came across
+        if (is_main)
+        {
+            TAB_iter iter = IR_iterateTypes();
+            string td_label;
+            IR_type ty;
+
+            while (TAB_next (iter, (void **)&td_label, (void **)&ty))
+                _genSystemType (ty);
+        }
     //}
 }
 
 void SEM_boot(void)
 {
-    S_Create      = S_Symbol("Create");
-    S_this        = S_Symbol("this");
-    S_System      = S_Symbol("System");
-    S_String      = S_Symbol("String");
-    S_GC          = S_Symbol("GC");
-    S_gc          = S_Symbol("gc");
-    S__MarkBlack  = S_Symbol("_MarkBlack");
-    S_Assert      = S_Symbol("Assert");
-    S_Debug       = S_Symbol("Debug");
-    S_Diagnostics = S_Symbol("Diagnostics");
-    S_Array       = S_Symbol("Array");
+    S_Create         = S_Symbol("Create");
+    S_CreateInstance = S_Symbol("CreateInstance");
+    S_this           = S_Symbol("this");
+    S_System         = S_Symbol("System");
+    S_String         = S_Symbol("String");
+    S_GC             = S_Symbol("GC");
+    S_gc             = S_Symbol("gc");
+    S__MarkBlack     = S_Symbol("_MarkBlack");
+    S_Assert         = S_Symbol("Assert");
+    S_Debug          = S_Symbol("Debug");
+    S_Diagnostics    = S_Symbol("Diagnostics");
+    S_Array          = S_Symbol("Array");
+    S_Type           = S_Symbol("Type");
 }
 

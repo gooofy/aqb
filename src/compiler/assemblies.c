@@ -411,6 +411,7 @@ static IR_type _deserializeIRTypeRef (void)
     {
         case Ty_reference:
             ty->u.ref = _deserializeIRTypeRef ();
+            assert (ty->u.ref->kind != Ty_reference);
             break;
         case Ty_pointer:
             ty->u.pointer = _deserializeIRTypeRef ();
@@ -551,11 +552,14 @@ static void _deserializeIRType(IR_type ty)
             }
             ty->kind  = Ty_reference;
             ty->u.ref = tyCls;
+            IR_registerType (tyCls);
             break;
         }
         default:
             assert(false);
     }
+
+    IR_registerType (ty);
 }
 
 static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)

@@ -56,7 +56,6 @@ IR_assembly CO_AssemblyInit (S_symbol name)
     //Ty_init();
     EM_init();
     PA_init();
-    IR_init();
 
     AS_init();
     CG_init(S_name(name));
