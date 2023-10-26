@@ -43,7 +43,7 @@ typedef struct IR_const_                  *IR_const;
 
 struct IR_assembly_
 {
-    S_symbol      name;
+    S_symbol      id;
     bool          hasCode;
     IR_definition def_first, def_last;
     IR_assembly   next;
@@ -200,7 +200,7 @@ struct IR_type_
     union
     {
         IR_type                                                               pointer;
-        S_symbol                                                              unresolved;
+        IR_name                                                               unresolved;
         struct {IR_name           name;
                 IR_visibility     visibility;
                 bool              isStatic;
@@ -393,7 +393,7 @@ IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, I
 bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
-IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol id);
+IR_type            IR_TypeUnresolved     (S_pos pos, IR_name name);
 IR_type            IR_TypeDArray         (S_pos pos, int numDims, IR_type elementType);
 IR_type            IR_getReference       (S_pos pos, IR_type ty);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
@@ -446,7 +446,7 @@ IR_type            IR_TypeUInt32         (void);
 IR_type            IR_TypeSingle         (void);
 IR_type            IR_TypeDouble         (void);
 
-IR_type            IR_TypeUBytePtr       (void);
+IR_type            IR_TypeBytePtr        (void);
 IR_type            IR_TypeUInt32Ptr      (void);
 IR_type            IR_TypeVTablePtr      (void);
 

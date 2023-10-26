@@ -316,7 +316,7 @@ void CG_StringItem (AS_instrList code, S_pos pos, CG_item *item, string str)
     CG_frag frag = CG_StringFrag(strLabel, str);
     g_fragList = CG_FragList(frag, g_fragList);
 
-    IR_type ty = IR_TypeUBytePtr();
+    IR_type ty = IR_TypeBytePtr();
     CG_TempItem (item, ty);
     AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_ILabel_AnDn, Temp_w_L, NULL,                            //     move.l #strLabel, item.t
                                          item->u.inReg, NULL, 0, strLabel));

@@ -260,7 +260,7 @@ static void _serializeIRDefinition (IR_definition def)
 
 bool IR_saveAssembly (IR_assembly assembly, string symfn)
 {
-    LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "assemblies: IR_saveAssembly(%s) symfn=%s ...\n", S_name(assembly->name), symfn);
+    LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "assemblies: IR_saveAssembly(%s) symfn=%s ...\n", S_name(assembly->id), symfn);
     symf = fopen(symfn, "w");
 
     if (!symf)
@@ -373,7 +373,7 @@ static IR_type _createIRType (IR_name name)
     IR_type ty = IR_namesLookupType (names, sn->sym);
     if (!ty)
     {
-        ty = IR_TypeUnresolved (S_noPos, sn->sym);
+        ty = IR_TypeUnresolved (S_noPos, name);
         IR_namesAddType (names, sn->sym, ty);
     }
 
@@ -402,6 +402,17 @@ static IR_type _deserializeIRTypeRef (void)
             IR_name name = _deserializeIRName ();
             return _createIRType (name);
         }
+        case Ty_reference:
+        {
+            IR_type ty = _deserializeIRTypeRef ();
+            assert (ty->kind != Ty_reference);
+            return IR_getReference (S_noPos, ty);
+        }
+        case Ty_pointer:
+        {
+            IR_type ty = _deserializeIRTypeRef ();
+            return IR_getPointer (S_noPos, ty);
+        }
         default: break;
     }
     IR_type ty = U_poolAllocZero (UP_ir, sizeof (*ty));
@@ -409,13 +420,6 @@ static IR_type _deserializeIRTypeRef (void)
     ty->pos = S_noPos;
     switch (kind)
     {
-        case Ty_reference:
-            ty->u.ref = _deserializeIRTypeRef ();
-            assert (ty->u.ref->kind != Ty_reference);
-            break;
-        case Ty_pointer:
-            ty->u.pointer = _deserializeIRTypeRef ();
-            break;
         case Ty_darray:
             ty->u.darray.elementType = _deserializeIRTypeRef ();
             ty->u.darray.numDims = fread_u1();
@@ -426,6 +430,7 @@ static IR_type _deserializeIRTypeRef (void)
             assert(false);
             return NULL;
     }
+    IR_registerType (ty);
     return ty;
 }
 
@@ -529,30 +534,27 @@ static void _deserializeIRType(IR_type ty)
             break;
         case Ty_class:
         {
-            IR_type tyCls = U_poolAllocZero (UP_ir, sizeof (*tyCls));
-            tyCls->kind = Ty_class;
-            tyCls->u.cls.name = _deserializeIRName ();
-            tyCls->u.cls.visibility = fread_u1 ();
-            tyCls->u.cls.isStatic = fread_u1 ();
-            tyCls->u.cls.uiSize = fread_u4 ();
-            tyCls->u.cls.baseTy = _deserializeIRTypeRef ();
-            //assert (!tyCls->u.cls.implements); // FIXME
-            tyCls->u.cls.constructor = _deserializeIRProc ();
-            tyCls->u.cls.__init = _deserializeIRProc ();
-            tyCls->u.cls.members = _deserializeIRMemberList ();
-            tyCls->u.cls.virtualMethodCnt = fread_u2 ();
+            ty->kind = Ty_class;
+            ty->u.cls.name = _deserializeIRName ();
+            ty->u.cls.visibility = fread_u1 ();
+            ty->u.cls.isStatic = fread_u1 ();
+            ty->u.cls.uiSize = fread_u4 ();
+            ty->u.cls.baseTy = _deserializeIRTypeRef ();
+            //assert (!ty->u.cls.implements); // FIXME
+            ty->u.cls.constructor = _deserializeIRProc ();
+            ty->u.cls.__init = _deserializeIRProc ();
+            ty->u.cls.members = _deserializeIRMemberList ();
+            ty->u.cls.virtualMethodCnt = fread_u2 ();
             // take care of vTablePtr
-            if (!tyCls->u.cls.baseTy)
+            if (!ty->u.cls.baseTy)
             {
-                tyCls->u.cls.vTablePtr = tyCls->u.cls.members->first;
+                ty->u.cls.vTablePtr = ty->u.cls.members->first;
             }
             else
             {
-                tyCls->u.cls.vTablePtr = tyCls->u.cls.baseTy->u.cls.vTablePtr;
+                ty->u.cls.vTablePtr = ty->u.cls.baseTy->u.cls.vTablePtr;
             }
-            ty->kind  = Ty_reference;
-            ty->u.ref = tyCls;
-            IR_registerType (tyCls);
+            IR_registerType (ty);
             break;
         }
         default:
@@ -578,7 +580,7 @@ static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
             assert (!ty || ty->kind == Ty_unresolved);
             if (!ty)
             {
-                ty = IR_TypeUnresolved (S_noPos, def->id);
+                ty = IR_TypeUnresolved (S_noPos, IR_NamespaceName (def->names, def->id, S_noPos));
                 IR_namesAddType (def->names, def->id, ty);
             }
             def->u.ty = ty;
@@ -593,11 +595,11 @@ static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
     return def;
 }
 
-static IR_assembly _IR_Assembly (S_symbol name, bool hasCode)
+static IR_assembly _IR_Assembly (S_symbol id, bool hasCode)
 {
     IR_assembly assembly = U_poolAllocZero (UP_ir, sizeof (*assembly));
 
-    assembly->name       = name;
+    assembly->id         = id;
     assembly->hasCode    = hasCode;
     assembly->def_first  = NULL;
     assembly->def_last   = NULL;

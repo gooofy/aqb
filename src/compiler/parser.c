@@ -1638,22 +1638,22 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
         EM_error (pos, "class identifier expected here");
         return;
     }
-    S_symbol name = S_tkn.u.sym;
+    S_symbol id = S_tkn.u.sym;
 
-    IR_type tyRef = IR_namesLookupType (parent, name);
-    if (tyRef)
+    IR_name fqn  = IR_NamespaceName (parent, id, pos);
+
+    IR_type ty = IR_namesLookupType (parent, id);
+    if (ty)
     {
-        if (tyRef->kind != Ty_unresolved)
+        if (ty->kind != Ty_unresolved)
             EM_error (S_tkn.pos, "%s already exists in this namespace");
     }
     else
     {
-        tyRef = IR_TypeUnresolved (pos, name);
-        IR_namesAddType (parent, name, tyRef);
+        ty = IR_TypeUnresolved (pos, fqn);
+        IR_namesAddType (parent, id, ty);
     }
     S_nextToken();
-
-    IR_name fqn  = IR_NamespaceName (parent, name, pos);
 
     if (S_tkn.kind == S_LESS)
     {
@@ -1676,7 +1676,7 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
         if (   (fqn->first->sym  != S_System)
             || (fqn->last->sym   != S_Object)
             || (fqn->first->next != fqn->last))
-            tyBase = _getObjectType()->u.ref;
+            tyBase = _getObjectType();
     }
 
     if (S_tkn.kind == S_WHERE)
@@ -1685,37 +1685,33 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
         return;
     }
 
-    IR_type t = IR_TypeUnresolved (pos, name);
-    t->kind                   = Ty_class;
-    t->pos                    = pos;
-    t->u.cls.name             = fqn;
-    t->u.cls.visibility       = visibility;
-    t->u.cls.isStatic         = isStatic;
-    t->u.cls.uiSize           = 0;
-    t->u.cls.baseTd           = tdBase;
-    t->u.cls.baseTy           = tyBase;
-    t->u.cls.implements       = NULL;
-    t->u.cls.constructor      = NULL;
-    t->u.cls.__init           = NULL;
-    t->u.cls.members          = IR_MemberList();
-    t->u.cls.virtualMethodCnt = 0;
+    ty->kind                   = Ty_class;
+    ty->pos                    = pos;
+    ty->u.cls.name             = fqn;
+    ty->u.cls.visibility       = visibility;
+    ty->u.cls.isStatic         = isStatic;
+    ty->u.cls.uiSize           = 0;
+    ty->u.cls.baseTd           = tdBase;
+    ty->u.cls.baseTy           = tyBase;
+    ty->u.cls.implements       = NULL;
+    ty->u.cls.constructor      = NULL;
+    ty->u.cls.__init           = NULL;
+    ty->u.cls.members          = IR_MemberList();
+    ty->u.cls.virtualMethodCnt = 0;
 
     // vTablePtr has to be the very first field
     if (!tyBase)
     {
-        t->u.cls.vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, /*td=*/NULL);
-        t->u.cls.vTablePtr->u.field.ty = IR_TypeVTablePtr();
-        IR_addMember (t->u.cls.members, t->u.cls.vTablePtr);
+        ty->u.cls.vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, /*td=*/NULL);
+        ty->u.cls.vTablePtr->u.field.ty = IR_TypeVTablePtr();
+        IR_addMember (ty->u.cls.members, ty->u.cls.vTablePtr);
     }
     else
     {
-        t->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
+        ty->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
     }
 
-    tyRef->kind  = Ty_reference;
-    tyRef->u.ref = t;
-
-    IR_definition def = IR_DefinitionType (parent, name, t);
+    IR_definition def = IR_DefinitionType (parent, id, ty);
     IR_assemblyAdd (_g_assembly, def);
 
     IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
@@ -1727,7 +1723,7 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
     }
     S_nextToken();
 
-    LOG_printf (LOG_DEBUG, "class declaration, name=%s\n", S_name(name));
+    LOG_printf (LOG_DEBUG, "class declaration, id=%s\n", S_name(id));
 
     while (S_tkn.kind != S_RBRACE)
     {
@@ -1741,7 +1737,7 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
 
         if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
         {
-            _method_or_field_declaration (t->u.cls.members, pos, mods, t, names);
+            _method_or_field_declaration (ty->u.cls.members, pos, mods, ty, names);
         }
         else
         {

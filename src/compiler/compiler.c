@@ -448,7 +448,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
             continue;
 
         static char mod_fn[PATH_MAX];
-        snprintf (mod_fn, PATH_MAX, "%s.a", S_name (a->name));
+        snprintf (mod_fn, PATH_MAX, "%s.a", S_name (a->id));
         LOG_printf (LOG_INFO, "        reading %s\n", mod_fn);
         fObj = OPT_assemblyOpenFile (mod_fn);
         if (!fObj)
@@ -456,7 +456,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
             LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", mod_fn);
             CO_exit(EXIT_FAILURE);
         }
-        if (!LI_segmentListReadObjectFile (UP_link, sl, S_name(a->name), fObj))
+        if (!LI_segmentListReadObjectFile (UP_link, sl, S_name(a->id), fObj))
         {
             fclose(fObj);
             CO_exit(EXIT_FAILURE);

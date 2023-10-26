@@ -335,7 +335,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
     return true;
 }
 
-static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_namespace names);
+static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
@@ -379,7 +379,7 @@ static bool _coercion (IR_type tyA, IR_type tyB, IR_type *tyRes)
 static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context context)
 {
     if (!v->ty)
-        v->ty = _elaborateType (v->td, context, names);
+        v->ty = _elaborateTypeDesignator (v->td, context, names);
 
     IR_type ty = v->ty;
 
@@ -437,13 +437,13 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
             CG_itemList args = CG_ItemList();
 
             CG_itemListNode n = CG_itemListAppend(args);
-            CG_HeapPtrItem (&n->item, ty->u.darray.elementType->systemTypeLabel, _getSystemType());
+            CG_HeapPtrItem (&n->item, ty->u.darray.elementType->systemTypeLabel, IR_getReference(v->pos, _getSystemType()));
             CG_loadVal (context->code, v->pos, context->frame, &n->item);
 
             n = CG_itemListAppend(args);
             CG_IntItem (&n->item, ty->u.darray.dims[0], IR_TypeInt32()); // length
 
-            return _transCallBuiltinMethod(v->pos, _getSystemArrayType()->u.ref, S_CreateInstance, args, context->code, context->frame, se);
+            return _transCallBuiltinMethod(v->pos, _getSystemArrayType(), S_CreateInstance, args, context->code, context->frame, se);
         }
     }
 
@@ -555,7 +555,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, context->code, context->frame, res);
+    return _transCallBuiltinMethod(expr->pos, _getStringType(), S_Create, args, context->code, context->frame, res);
 }
 
 static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM_item *res)
@@ -951,11 +951,11 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace
 static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespace parent)
 {
     if (!proc->returnTy)
-        proc->returnTy = _elaborateType (proc->returnTd, parentContext, parent);
+        proc->returnTy = _elaborateTypeDesignator (proc->returnTd, parentContext, parent);
     for (IR_formal formal = proc->formals; formal; formal=formal->next)
     {
         if (!formal->ty)
-            formal->ty = _elaborateType (formal->td, parentContext, parent);
+            formal->ty = _elaborateTypeDesignator (formal->td, parentContext, parent);
     }
 
     if (!proc->isExtern)
@@ -1431,7 +1431,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
 
     if (tyCls->u.cls.baseTd)
-        tyCls->u.cls.baseTy = _elaborateType (tyCls->u.cls.baseTd, /*context=*/NULL, parent);
+        tyCls->u.cls.baseTy = _elaborateTypeDesignator (tyCls->u.cls.baseTd, /*context=*/NULL, parent);
 
     IR_type tyBase = tyCls->u.cls.baseTy;
 
@@ -1460,12 +1460,12 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         {
             case IR_recField:
                 if (!member->u.field.ty)
-                    member->u.field.ty = _elaborateType (member->u.field.td, /*context=*/NULL, names);
+                    member->u.field.ty = _elaborateTypeDesignator (member->u.field.td, /*context=*/NULL, names);
                 IR_fieldCalcOffset (tyCls, member);
                 break;
             case IR_recProperty:
                 if (!member->u.property.ty)
-                    member->u.property.ty = _elaborateType (member->u.property.td, /*context=*/NULL, names);
+                    member->u.property.ty = _elaborateTypeDesignator (member->u.property.td, /*context=*/NULL, names);
                 break;
             default:
                 break;
@@ -1614,7 +1614,7 @@ static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context con
     return t;
 }
 
-static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_namespace names)
+static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names)
 {
     if (!td->name)
     {
@@ -1642,6 +1642,11 @@ static IR_type _elaborateType (IR_typeDesignator td, SEM_context context, IR_nam
     }
 
     t = _applyTdExt (t, td->exts, context);
+
+    if (t->kind == Ty_class)
+    {
+        t = IR_getReference (name->pos, t);
+    }
 
     return t;
 
@@ -1734,11 +1739,11 @@ IR_member IR_namesResolveMember (IR_name name, IR_using usings)
     //        break;
 
     //    case Ty_reference:
-    //        _elaborateType (ty->u.ref, usings);
+    //        _elaborateTypeDesignator (ty->u.ref, usings);
     //        break;
 
     //    case Ty_pointer:
-    //        _elaborateType (ty->u.pointer, usings);
+    //        _elaborateTypeDesignator (ty->u.pointer, usings);
     //        break;
 
     //    case Ty_unresolved:
@@ -1933,8 +1938,8 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
         {
             CG_frag frag = CG_DataFrag(Temp_namedlabel("___top_fd_table"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
             for (IR_assembly mln = IR_getLoadedAssembliesList(); mln; mln=mln->next)
-                CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->name)));
-            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->name)));
+                CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->id)));
+            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->id)));
             CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0)); // end marker
         }
 
@@ -1942,10 +1947,9 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
         if (is_main)
         {
             TAB_iter iter = IR_iterateTypes();
-            string td_label;
-            IR_type ty;
+            IR_type ty, ty2;
 
-            while (TAB_next (iter, (void **)&td_label, (void **)&ty))
+            while (TAB_next (iter, (void **)&ty, (void **)&ty2))
                 _genSystemType (ty);
         }
     //}

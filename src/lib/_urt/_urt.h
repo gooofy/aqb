@@ -194,10 +194,10 @@ struct System_Type_
 
     union
     {
-        System_type                                          *pointer;
-        System_type                                          *ref;
+        System_Type                                          *pointer;
+        System_Type                                          *ref;
         struct {//char             *name;
-                System_type      *baseTy;
+                System_Type      *baseTy;
                 /*
                  * flat array of interfaces and members follow beyond this point
                  *
@@ -217,7 +217,7 @@ struct System_Type_
                  * NULL
                  */                                        } cls;
         struct {int               numDims;
-                System_type      *elementType;
+                System_Type      *elementType;
                 /*
                  * flat array of dimensions follows beyond this point
                  *
@@ -228,8 +228,8 @@ struct System_Type_
                  * 0
                  */                                        } sarray;
         struct {int               numDims;
-                System_type      *elementType;
-                System_type      *cArrayType;
+                System_Type      *elementType;
+                System_Type      *cArrayType;
                 /*
                  * flat array of dimensions follows beyond this point
                  *

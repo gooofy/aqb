@@ -5,7 +5,7 @@ static S_symbol S_Main;
 
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 static TAB_table   _g_refCache; // IR_type -> IR_type
-static TAB_table   _g_typeReg ; // string (System.Type label) -> IR_type
+static TAB_table   _g_typeReg ; // IR_type -> IR_type (itself, this is a hash set)
 
 void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
 {
@@ -366,7 +366,7 @@ Temp_label IR_genSystemTypeLabel (IR_type ty)
 
 void IR_registerType (IR_type ty)
 {
-    TAB_enter (_g_typeReg, IR_genSystemTypeLabel (ty), ty);
+    TAB_enter (_g_typeReg, ty, ty);
 }
 
 TAB_iter IR_iterateTypes (void)
@@ -532,13 +532,13 @@ string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
     return label;
 }
 
-IR_type IR_TypeUnresolved (S_pos pos, S_symbol id)
+IR_type IR_TypeUnresolved (S_pos pos, IR_name name)
 {
     IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
 
     t->kind         = Ty_unresolved;
     t->pos          = pos;
-    t->u.unresolved = id;
+    t->u.unresolved = name;
 
     return t;
 }
@@ -569,6 +569,8 @@ IR_type IR_getReference (S_pos pos, IR_type ty)
 
     TAB_enter (_g_refCache, ty, p);
 
+    IR_registerType (p);
+
     return p;
 }
 
@@ -585,6 +587,8 @@ IR_type IR_getPointer (S_pos pos, IR_type ty)
     p->u.pointer = ty;
 
     TAB_enter (_g_ptrCache, ty, p);
+
+    IR_registerType (p);
 
     return p;
 }
@@ -852,8 +856,8 @@ IR_type IR_TypeDouble(void) {return _tyDouble;}
 //static struct IR_type_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 //IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
 
-static IR_type _tyUBytePtr;
-IR_type IR_TypeUBytePtr(void) {return _tyUBytePtr;}
+static IR_type _tyBytePtr;
+IR_type IR_TypeBytePtr(void) {return _tyBytePtr;}
 
 static IR_type _tyUInt32Ptr;
 IR_type IR_TypeUInt32Ptr(void) {return _tyUInt32Ptr;}
@@ -900,9 +904,12 @@ void IR_init(void)
     IR_registerType (_tySingle );
     IR_registerType (_tyDouble );
 
-    IR_registerType (_tyUBytePtr  );
+    IR_registerType (_tyBytePtr  );
+    TAB_enter (_g_ptrCache, _tyByte, _tyBytePtr);
     IR_registerType (_tyUInt32Ptr );
+    TAB_enter (_g_ptrCache, _tyUInt32, _tyUInt32Ptr);
     IR_registerType (_tyVTablePtr );
+    TAB_enter (_g_ptrCache, _tyUInt32Ptr, _tyVTablePtr);
 }
 
 void IR_boot(void)
@@ -921,8 +928,7 @@ void IR_boot(void)
     _tySingle  = _mkStdType (Ty_single);
     _tyDouble  = _mkStdType (Ty_double);
 
-
-    _tyUBytePtr  = _mkPointerType (_tyByte);
+    _tyBytePtr   = _mkPointerType (_tyByte);
     _tyUInt32Ptr = _mkPointerType (_tyUInt32);
     _tyVTablePtr = _mkPointerType (_tyUInt32Ptr/*FIXME*/);
 }
