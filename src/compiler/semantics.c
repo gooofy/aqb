@@ -438,7 +438,8 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
 
             CG_itemListNode n = CG_itemListAppend(args);
             CG_HeapPtrItem (&n->item, ty->u.darray.elementType->systemTypeLabel, IR_getReference(v->pos, _getSystemType()));
-            CG_loadVal (context->code, v->pos, context->frame, &n->item);
+            CG_loadRef (context->code, v->pos, context->frame, &n->item);
+            n->item.kind = IK_inReg;
 
             n = CG_itemListAppend(args);
             CG_IntItem (&n->item, ty->u.darray.dims[0], IR_TypeInt32()); // length
@@ -1778,6 +1779,8 @@ static void _genSystemType (IR_type ty)
     //    ULONG           __gc_size;
     CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
     //    UBYTE           __gc_color;
+    CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeByte(), 0));
+    // alignment
     CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeByte(), 0));
 
     //    ULONG           _kind;
