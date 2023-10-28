@@ -272,6 +272,7 @@ struct System_Array_
     UBYTE          *_data;
     LONG           *_lengths;
     LONG            _rank;
+    System_Type    *_elementType;
 };
 
 VOID _System_Array___gc_scan (System_Array *this, System_GC *gc);

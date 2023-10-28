@@ -1,5 +1,5 @@
 
-#define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 //#define ENABLE_HEAP_DUMP
 
 #include "_urt.h"
@@ -249,6 +249,8 @@ static void _gc_scan_stacks (void)
 // garbage collector main entry
 void GC_RUN (void)
 {
+    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: adapt GC_RUN to System.Type rtti!");
+
     // FIXME DPRINTF ("GC_RUN: starts, _framedesc___main_globals=0x%08lx\n", _framedesc___main_globals);
     DPRINTF ("GC_RUN: starts\n");
 

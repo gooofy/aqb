@@ -27,10 +27,19 @@ System_Array *_System_Array_CreateInstance (System_Type *elementType, LONG lengt
     if (!obj)
         ERROR (ERR_OUT_OF_MEMORY);
 
-    //obj->_data = GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
+    obj->_lengths = ALLOCATE_ (4, 0);
+    if (!obj->_lengths)
+        ERROR (ERR_OUT_OF_MEMORY);
+    *obj->_lengths    = length;
+    obj->_rank        = 1; // FIXME: multi-dim array support
+    obj->_elementType = elementType;
 
+    ULONG s = length * elementType->_size;
 
-    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Array.CreateInstance");
+    obj->_data = ALLOCATE_(s, 0);
+    if (!obj->_data)
+        ERROR (ERR_OUT_OF_MEMORY);
+
     return obj;
 }
 
