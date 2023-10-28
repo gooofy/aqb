@@ -1018,6 +1018,19 @@ static IR_expression _expression (void)
             return e;
 
         case S_EQUALS:       // =
+        {
+            S_pos pos = S_tkn.pos;
+            S_nextToken();
+            IR_expression e1 = e;
+            IR_expression e2 = _expression();
+            if (!e2)
+                return NULL;
+            e = IR_Expression (IR_expASSIGN, pos);
+            e->u.assign.target = e1;
+            e->u.assign.e      = e2;
+            return e;
+        }
+
         case S_PLUSEQUALS:   // +=
         case S_MINUSEQUALS:  // -=
         case S_MULEQUALS:    // *=

@@ -268,12 +268,12 @@ CG_frag CG_genGCFrameDesc (CG_frame frame)
         int tag = ty->kind;
         if (vi->label)
             tag |= TYPEREF_FLAG_LABEL;
-        CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeUInt16(), tag));
+        CG_dataFragAddConst (descFrag, IR_ConstUInt (IR_TypeUInt16(), tag));
         //genTypeRef (descFrag, ty->u.pointer, /*hasLabel = */ vi->label != NULL);
         if (vi->label)
             CG_dataFragAddPtr   (descFrag, vi->label);
         else
-            CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeUInt32(), vi->offset));
+            CG_dataFragAddConst (descFrag, IR_ConstUInt (IR_TypeUInt32(), vi->offset));
     }
     CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt16(), -1));
     return descFrag;

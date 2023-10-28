@@ -330,7 +330,8 @@ struct IR_statement_
 typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst,
                IR_expADD, IR_expSUB,
                IR_expEQU, IR_expNEQ, IR_expLT, IR_expLTEQ, IR_expGT, IR_expGTEQ,
-               IR_expINCR, IR_expDECR } IR_exprKind;
+               IR_expINCR, IR_expDECR,
+               IR_expASSIGN } IR_exprKind;
 
 struct IR_expression_
 {
@@ -344,6 +345,7 @@ struct IR_expression_
         IR_const                                           c;
         struct { IR_expression a; IR_expression b; }       binop;
         IR_expression                                      unop;
+        struct { IR_expression target; IR_expression e;}   assign;
     } u;
 };
 

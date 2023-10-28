@@ -20,7 +20,7 @@ static void _writeStubTyRef (FILE *cstubf, IR_type ty)
         case Ty_double    : fprintf (cstubf, "DOUBLE   "); break;
         // FIXME case Ty_string    : fprintf (cstubf, "STRPTR   "); break;
         // FIXME case Ty_sarray    : _writeStubTyRef (cstubf, ty->u.sarray.elementTy); fprintf (cstubf, "*"); break;
-        // FIXME case Ty_darray    : fprintf (cstubf, "DARRAY   "); break;
+        case Ty_darray    : fprintf (cstubf, "System_Array *"); break;
         // FIXME case Ty_record    : fprintf (cstubf, "%s ", S_name(ty->u.record.name)); break;
         case Ty_pointer   : _writeStubTyRef (cstubf, ty->u.pointer); fprintf (cstubf, "*"); break;
         case Ty_reference : _writeStubTyRef (cstubf, ty->u.ref    ); fprintf (cstubf, "*"); break;

@@ -652,6 +652,7 @@ void S_init(const char *sourcefn, FILE *sourcef)
     S_nextToken();
 }
 
+#ifdef S_KEEP_SOURCE
 string  S_getSourceLine (int line)
 {
     if (!line)
@@ -662,6 +663,7 @@ string  S_getSourceLine (int line)
     string s = TAB_look (g_src, (void*) (long) line);
     return s ? s : "";
 }
+#endif // S_KEEP_SOURCE
 
 void S_recordState (S_state *s)
 {

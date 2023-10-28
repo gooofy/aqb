@@ -6,6 +6,11 @@
 
 #include "symbol.h"
 
+// when enabled, scanner will keep a copy of the source code lines in RAM
+// so tree (IR) and assembly output can be annotated with source code excerpts
+
+#define S_KEEP_SOURCE
+
 #define MAX_LINE_LEN   8192
 
 typedef enum {
@@ -118,7 +123,7 @@ typedef struct
     } u;
 } S_tkn_t;
 
-extern S_tkn_t S_tkn; 
+extern S_tkn_t S_tkn;
 
 typedef struct S_state_ S_state;
 struct S_state_
@@ -155,7 +160,9 @@ static inline bool S_isIDCont(char ch)
 
 bool    S_nextToken (void);
 
+#ifdef S_KEEP_SOURCE
 string  S_getSourceLine (int line);
+#endif // S_KEEP_SOURCE
 
 void    S_init(const char *sourcefn, FILE *sourcef);
 

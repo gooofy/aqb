@@ -489,9 +489,12 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
             }
             break;
 
+        case Ty_reference:
+            assert (!v->initExp); // FIXME
+            break;
+
         case Ty_class:
         case Ty_interface:
-        case Ty_reference:
         case Ty_pointer:
             assert(false); // FIXME
             break;
@@ -914,6 +917,24 @@ static bool _elaborateExprComparison (IR_expression expr, SEM_context context, S
     return true;
 }
 
+static bool _elaborateLValue (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    if (!_elaborateExpression (expr, context, res))
+        return false;
+
+    switch (res->kind)
+    {
+        case SIK_cg:
+            CG_loadRef (context->code, expr->pos, context->frame, &res->u.cg);
+            return true;
+
+        default:
+            assert(false);
+            
+    }
+    return false;
+}
+
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res)
 {
     switch (expr->kind)
@@ -948,6 +969,21 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
         case IR_expINCR:
         case IR_expDECR:
             return _elaborateExprIncrDecr (expr, context, res);
+
+        case IR_expASSIGN:
+        {
+            SEM_item target;
+            if (!_elaborateLValue (expr->u.assign.target, context, &target))
+                return false;
+            assert (target.kind == SIK_cg);
+            if (!_elaborateExpression (expr->u.assign.e, context, res))
+                return false;
+
+            assert (res->kind == SIK_cg);
+
+            CG_transAssignment (context->code, expr->pos, context->frame, &target.u.cg, &res->u.cg);
+            break;
+        }
 
         default:
             assert(false); // FIXME
