@@ -299,6 +299,7 @@ struct IR_method_
 {
     IR_proc   proc;
     bool      isVirtual;
+    bool      isOverride;
     int16_t   vTableIdx;
 };
 
@@ -414,7 +415,7 @@ IR_const           IR_ConstString        (IR_type ty, string   s);
 
 int32_t            IR_constGetI32        (S_pos pos, IR_const c);
 
-IR_method          IR_Method             (IR_proc proc, bool isVirtual);
+IR_method          IR_Method             (IR_proc proc, bool isVirtual, bool isOverride);
 
 IR_memberList      IR_MemberList         (void);
 IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);

@@ -8,10 +8,10 @@ namespace System
     {
 
         // GC support *DO NOT TOUCH!*
-        private Object  __gc_next;
-        private Object  __gc_prev;
-        private uint    __gc_size;
-        private byte    __gc_color;
+        private Object  *__gc_next;
+        private Object  *__gc_prev;
+        private uint     __gc_size;
+        private byte     __gc_color;
 
         public extern virtual void Finalize ();
 
@@ -49,6 +49,13 @@ namespace System
     public class Array
     {
         public extern static Array CreateInstance(Type elementType, int length);
+
+        public extern override void Finalize ();
+
+        private byte    *_data;
+        private int     *_lengths;
+        private int      _rank;
+        private Type     _elementType;
     }
 
     public static class Console

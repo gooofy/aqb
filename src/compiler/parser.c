@@ -1406,6 +1406,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     bool          isStatic   = false;
     bool          isExtern   = false;
     bool          isVirtual  = false;
+    bool          isOverride = false;
 
     if (_check_modifier(&mods, MODF_PUBLIC))
         visibility = IR_visPublic;
@@ -1422,6 +1423,11 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         isStatic = true;
     if (_check_modifier(&mods, MODF_VIRTUAL))
         isVirtual = true;
+    if (_check_modifier(&mods, MODF_OVERRIDE))
+        isOverride = true;
+
+    if (isVirtual && isOverride)
+        EM_error (S_tkn.pos, "method: can't combine override with virtual");
 
     if (mods)
     {
@@ -1527,7 +1533,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
             }
         }
 
-        IR_method method = IR_Method(proc, isVirtual);
+        IR_method method = IR_Method(proc, isVirtual, isOverride);
         member = IR_MemberMethod (visibility, method);
 
         IR_addMember (ml, member);

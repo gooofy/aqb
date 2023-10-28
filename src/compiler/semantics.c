@@ -145,22 +145,101 @@ static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res
     return false;
 }
 
-static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
+static bool _checkImplements (IR_type ty, IR_type tyIntf)
+{
+    assert (tyIntf->kind == Ty_interface);
+    switch (ty->kind)
+    {
+        // FIXME
+        //case Ty_interface:
+        //    if (ty==tyIntf)
+        //        return true;
+        //    for (IR_implements implements=ty->u.interface.implements; implements; implements=implements->next)
+        //    {
+        //        if (_checkImplements (implements->intf, tyIntf))
+        //            return true;
+        //    }
+        //    break;
+        case Ty_class:
+            for (IR_implements implements=ty->u.cls.implements; implements; implements=implements->next)
+            {
+                if (_checkImplements (implements->intf, tyIntf))
+                    return true;
+            }
+            break;
+        default:
+            assert(false);
+    }
+    return false;
+}
+
+static bool _compatible_ty(IR_type tyFrom, IR_type tyTo)
 {
     if (tyTo == tyFrom)
         return true;
 
     switch (tyTo->kind)
     {
-        case Ty_int32:
-        case Ty_uint32:
-        case Ty_int16:
-        case Ty_uint16:
+        case Ty_boolean:
         case Ty_byte:
         case Ty_sbyte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+        case Ty_uint32:
         case Ty_single:
-        case Ty_boolean:
+        case Ty_double:
             return tyFrom->kind == tyTo->kind;
+
+        // FIXME
+        //case Ty_class:
+        //    if (tyFrom->kind == Ty_class)
+        //        return Ty_checkInherits (/*child=*/tyFrom, /*parent=*/tyTo);
+        //    return FALSE;
+        //    break;
+
+        // FIXME
+        //case Ty_interface:
+        //    if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
+        //        return Ty_checkImplements (tyFrom, tyTo);
+        //    return FALSE;
+        //    break;
+
+        case Ty_reference:
+
+            // FIXME: deal with strings?
+            //if (tyFrom->kind == Ty_string)
+            //{
+            //    if (  (tyTo->u.pointer->kind == Ty_any)
+            //       || (tyTo->u.pointer->kind == Ty_byte)
+            //       || (tyTo->u.pointer->kind == Ty_ubyte))
+            //        return TRUE;
+            //    return FALSE;
+            //}
+
+            if (tyFrom->kind != Ty_reference)
+                return false;
+
+            IR_type tyFromRef = tyFrom->u.ref;
+            IR_type tyToRef = tyTo->u.ref;
+
+            //if ((tyToRef->kind == Ty_any) || (tyFromRef->kind == Ty_any))
+            //    return TRUE;
+
+            // OOP: child -> base class assignment is legal
+            if ( (tyToRef->kind == Ty_class) && (tyFromRef->kind == Ty_class) )
+            {
+                while (tyFromRef && (tyFromRef != tyToRef) && (tyFromRef->u.cls.baseTy))
+                    tyFromRef = tyFromRef->u.cls.baseTy;
+                return tyToRef == tyFromRef;
+            }
+
+            // OOP: class -> implemented interface assignment is legal
+            if ( (tyToRef->kind == Ty_class) && (tyFromRef->kind == Ty_interface) )
+                return _checkImplements (tyToRef, tyFromRef);
+
+            return _compatible_ty(tyFromRef, tyToRef);
+
         // FIXME
         //case Ty_sarray:
         //    if (tyFrom->kind != Ty_sarray)
@@ -295,19 +374,6 @@ static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
         ////        return TRUE;
         ////    return FALSE;
 
-        // FIXME
-        //case Ty_interface:
-        //    if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
-        //        return Ty_checkImplements (tyFrom, tyTo);
-        //    return FALSE;
-        //    break;
-
-        // FIXME
-        //case Ty_class:
-        //    if (tyFrom->kind == Ty_class)
-        //        return Ty_checkInherits (/*child=*/tyFrom, /*parent=*/tyTo);
-        //    return FALSE;
-        //    break;
 
         default:
             assert(0);
@@ -318,7 +384,7 @@ static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
 static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
 {
     // check proc signature
-    if (!compatible_ty(proc2->returnTy, proc->returnTy))
+    if (!_compatible_ty(proc2->returnTy, proc->returnTy))
         return false;
     IR_formal f = proc->formals;
     IR_formal f2=proc2->formals;
@@ -326,7 +392,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
     {
         if (!f)
             break;
-        if (!compatible_ty(f->ty, f2->ty))
+        if (!_compatible_ty(f->ty, f2->ty))
             break;
         f = f->next;
     }
@@ -1046,6 +1112,13 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
 
             if (method->isVirtual)
             {
+                EM_error (pos, "%s: a virtual method of this signature already exists in a base class, use override instead.",
+                          S_name(method->proc->id));
+                return;
+            }
+
+            if (method->isOverride)
+            {
                 if (!existingMember->u.method->isVirtual)
                 {
                     EM_error (pos, "%s: only virtual methods can be overriden",
@@ -1061,6 +1134,21 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
                 }
 
                 vTableIdx = existingMember->u.method->vTableIdx;
+            }
+            else
+            {
+                if (existingMember->u.method->isVirtual)
+                    EM_error (pos, "%s: use the override keyword to override a virtual method.",
+                              S_name(method->proc->id));
+                return;
+            }
+        }
+        else
+        {
+            if (method->isOverride)
+            {
+                EM_error (pos, "%s: no matching method to override found.",
+                          S_name(method->proc->id));
             }
         }
     }

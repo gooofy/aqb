@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     8
+#define SYM_VERSION     9
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -203,6 +203,7 @@ static void _serializeIRMemberList (IR_memberList members)
             case IR_recMethod:
                 _serializeIRProc (member->u.method->proc);
                 fwrite_u1(member->u.method->isVirtual ? 1:0);
+                fwrite_u1(member->u.method->isOverride ? 1:0);
                 fwrite_i2(member->u.method->vTableIdx);
                 break;
             case IR_recField:
@@ -501,7 +502,7 @@ static IR_memberList _deserializeIRMemberList (void)
             case IR_recMethod:
             {
                 IR_proc proc = _deserializeIRProc ();
-                member->u.method = IR_Method (proc, /*isVirtual=*/fread_u1());
+                member->u.method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
                 member->u.method->vTableIdx = fread_i2();
                 break;
             }

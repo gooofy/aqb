@@ -265,13 +265,17 @@ System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
 struct System_Array_
 {
     ULONG         **_vTablePtr;
-    System_Object **__gc_next;
-    System_Object **__gc_prev;
+    System_Object  *__gc_next;
+    System_Object  *__gc_prev;
     ULONG           __gc_size;
     UBYTE           __gc_color;
+    UBYTE          *_data;
+    LONG           *_lengths;
+    LONG            _rank;
 };
 
 VOID _System_Array___gc_scan (System_Array *this, System_GC *gc);
+VOID _System_Array_Finalize (System_Array *this);
 System_Array *_System_Array_CreateInstance (System_Type *elementType, LONG length);
 
 struct System_Console_
