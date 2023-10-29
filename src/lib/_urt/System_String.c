@@ -1,4 +1,4 @@
-#define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 #include "_urt.h"
 
 #include <exec/memory.h>

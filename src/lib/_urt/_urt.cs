@@ -61,6 +61,8 @@ namespace System
     public static class Console
     {
         public extern static void WriteLine(string value);
+        public extern static void Write(string value);
+        public extern static void WriteInt(int value);
     }
 
 

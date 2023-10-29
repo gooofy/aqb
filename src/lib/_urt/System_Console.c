@@ -18,6 +18,18 @@ VOID _System_Console_WriteLine (System_String *sstr)
     Write(g_stdout, (CONST APTR) _nl, 1);
 }
 
+VOID _System_Console_Write (System_String *sstr)
+{
+    Write(g_stdout, (CONST APTR) sstr->_str, sstr->_len);
+}
+
+VOID _System_Console_WriteInt (LONG value)
+{
+    char buf[20];
+    _astr_itoa_ext (value, (UBYTE*) buf, /*base=*/10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
+    Write(g_stdout, (CONST APTR) buf, _astr_len((UBYTE*)buf));
+}
+
 // FIXME: static initializer
 void _console_init (void)
 {

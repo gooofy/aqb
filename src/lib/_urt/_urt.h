@@ -288,8 +288,10 @@ struct System_Console_
     UBYTE          __gc_color;
 };
 
-VOID _System_Console___gc_scan (System_Console *this, System_GC *gc);
+VOID _System_Console___gc_scan  (System_Console *this, System_GC *gc);
 VOID _System_Console_WriteLine  (System_String *value);
+VOID _System_Console_Write      (System_String *sstr);
+VOID _System_Console_WriteInt   (LONG     value);
 
 struct System_Diagnostics_Debug_
 {

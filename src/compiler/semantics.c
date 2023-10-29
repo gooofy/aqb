@@ -585,7 +585,11 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
     IR_formal f = proc->formals;
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
-        assert(f);
+        if (!f)
+        {
+            EM_error (a->e->pos, "too many arguments");
+            return false;
+        }
         assert (!f->reg); // FIXME
         assert (!f->defaultExp); // FIXME
         assert (!f->isParams); // FIXME
@@ -596,6 +600,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         assert (item.kind == SIK_cg); // FIXME
         n->item = item.u.cg;
         CG_loadVal (context->code, pos, context->frame, &n->item);
+        f = f->next;
     }
 
     // FIXME: Debug.Assert special
