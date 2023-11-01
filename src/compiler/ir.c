@@ -512,26 +512,6 @@ bool IR_procIsMain (IR_proc proc)
     return is_main;
 }
 
-string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
-{
-    if (IR_procIsMain (proc))
-        return _MAIN_LABEL;
-
-    string label = strconcat(UP_frontend, "_", S_name(proc->id));
-
-    if (clsOwnerName)
-    {
-        string prefix = IR_name2string (clsOwnerName, "_");
-        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, prefix, label));
-    }
-
-    // FIXME: append signature for overloading support
-    //if (isFunction)
-    //    label = strconcat(UP_frontend, label, "_");
-
-    return label;
-}
-
 IR_type IR_TypeUnresolved (S_pos pos, IR_name name)
 {
     IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
@@ -605,6 +585,22 @@ IR_method IR_Method  (IR_proc proc, bool isVirtual, bool isOverride)
     return m;
 }
 
+IR_methodGroup IR_MethodGroup (void)
+{
+    IR_methodGroup mg = U_poolAllocZero (UP_ir, sizeof (*mg));
+
+    return mg;
+}
+
+void IR_methodGroupAdd (IR_methodGroup mg, IR_method method)
+{
+    assert (!method->next);
+    if (mg->last)
+        mg->last = mg->last->next = method;
+    else
+        mg->first = mg->last = method;
+}
+
 IR_memberList IR_MemberList (void)
 {
     IR_memberList ml = U_poolAllocZero (UP_ir, sizeof (*ml));
@@ -615,15 +611,15 @@ IR_memberList IR_MemberList (void)
     return ml;
 }
 
-IR_member IR_MemberMethod (IR_visibility visibility, IR_method method)
+IR_member IR_MemberMethodGroup  (IR_visibility visibility, S_symbol id, IR_methodGroup mg)
 {
     IR_member m = U_poolAllocZero (UP_ir, sizeof (*m));
 
     m->next        = NULL;
-    m->kind        = IR_recMethod;
-    m->id          = method->proc->id;
+    m->kind        = IR_recMethods;
+    m->id          = id;
     m->visibility  = visibility;
-    m->u.method    = method;
+    m->u.methods   = mg;
 
     return m;
 }

@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     9
+#define SYM_VERSION     10
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -200,12 +200,22 @@ static void _serializeIRMemberList (IR_memberList members)
         fwrite_u1(member->visibility);
         switch (member->kind)
         {
-            case IR_recMethod:
-                _serializeIRProc (member->u.method->proc);
-                fwrite_u1(member->u.method->isVirtual ? 1:0);
-                fwrite_u1(member->u.method->isOverride ? 1:0);
-                fwrite_i2(member->u.method->vTableIdx);
+            case IR_recMethods:
+            {
+                int cnt=0;
+                for (IR_method m=member->u.methods->first; m; m=m->next)
+                    cnt++;
+                fwrite_u2(cnt);
+
+                for (IR_method m=member->u.methods->first; m; m=m->next)
+                {
+                    _serializeIRProc (m->proc);
+                    fwrite_u1(m->isVirtual ? 1:0);
+                    fwrite_u1(m->isOverride ? 1:0);
+                    fwrite_i2(m->vTableIdx);
+                }
                 break;
+            }
             case IR_recField:
                 fwrite_u4(member->u.field.uiOffset);
                 _serializeIRTypeRef (member->u.field.ty);
@@ -285,6 +295,7 @@ bool IR_saveAssembly (IR_assembly assembly, string symfn)
     return true;
 }
 
+#if 0
 static int16_t fread_i2(void)
 {
     int16_t i;
@@ -295,6 +306,7 @@ static int16_t fread_i2(void)
 
     return i;
 }
+#endif // 0
 
 static uint32_t fread_u4(void)
 {
@@ -499,11 +511,12 @@ static IR_memberList _deserializeIRMemberList (void)
         member->visibility = fread_u1();
         switch (member->kind)
         {
-            case IR_recMethod:
+            case IR_recMethods:
             {
-                IR_proc proc = _deserializeIRProc ();
-                member->u.method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
-                member->u.method->vTableIdx = fread_i2();
+                assert(false); // FIXME
+                //IR_proc proc = _deserializeIRProc ();
+                //member->u.method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
+                //member->u.method->vTableIdx = fread_i2();
                 break;
             }
             case IR_recField:

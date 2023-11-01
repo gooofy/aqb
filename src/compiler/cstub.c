@@ -256,8 +256,9 @@ static void _writeStubMethodsRec (FILE *cstubf, IR_type tyCls, bool writeBody)
     {
         switch (member->kind)
         {
-            case IR_recMethod:
-                _writeStubMethod (cstubf, tyCls, member->u.method->proc, writeBody);
+            case IR_recMethods:
+                for (IR_method m=member->u.methods->first; m; m=m->next)
+                    _writeStubMethod (cstubf, tyCls, m->proc, writeBody);
                 break;
 
             case IR_recProperty:

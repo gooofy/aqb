@@ -1,8 +1,13 @@
+#include <stdio.h>
+#include <string.h>
+
 #include "semantics.h"
 #include "codegen.h"
 #include "errormsg.h"
 #include "options.h"
 #include "parser.h"
+
+#define MAX_LABEL_LEN 1024
 
 typedef struct SEM_context_ *SEM_context;
 typedef struct SEM_item_     SEM_item;
@@ -145,6 +150,7 @@ static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res
     return false;
 }
 
+#if 0 // FIXME
 static bool _checkImplements (IR_type ty, IR_type tyIntf)
 {
     assert (tyIntf->kind == Ty_interface);
@@ -400,6 +406,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
         return false;
     return true;
 }
+#endif // 0
 
 static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
@@ -407,15 +414,16 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
                                     AS_instrList code, CG_frame frame, SEM_item *res)
 {
-    assert (tyCls->kind == Ty_class);
+    assert(false); // FIXME
+    //assert (tyCls->kind == Ty_class);
 
-    IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
-    if (!entry || (entry->kind != IR_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
+    //IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
+    //if (!entry || (entry->kind != IR_recMethod))
+    //    return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
 
-    IR_method method = entry->u.method;
-    res->kind = SIK_cg;
-    CG_transMethodCall(code, pos, frame, method, arglist, &res->u.cg);
+    //IR_method method = entry->u.method;
+    //res->kind = SIK_cg;
+    //CG_transMethodCall(code, pos, frame, method, arglist, &res->u.cg);
     return true;
 }
 
@@ -540,6 +548,7 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
 }
 
 // FIXME
+#if 0
 static bool _isDebugAssert (SEM_item *fun)
 {
     if (fun->kind != SIK_member)
@@ -555,9 +564,13 @@ static bool _isDebugAssert (SEM_item *fun)
         return false;
     return true;
 }
+#endif // 0
 
 static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_item *res)
 {
+    assert(false); // FIXME
+    return false;
+#if 0
     S_pos pos = expr->pos;
     SEM_item fun;
     if (!_elaborateExpression (expr->u.call.fun, context, &fun))
@@ -620,6 +633,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
 
     res->kind = SIK_cg;
     return CG_transMethodCall(context->code, expr->pos, context->frame, m, args, &res->u.cg);
+#endif // 0
 }
 
 static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1056,6 +1070,216 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace
     }
 }
 
+// https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling
+// https://en.wikipedia.org/wiki/Name_mangling#Complex_example
+//
+// All mangled symbols begin with _Z (note that an identifier beginning with an
+// underscore followed by a capital letter is a reserved identifier in C, so
+// conflict with user identifiers is avoided); for nested names (including both
+// namespaces and classes), this is followed by N, then a series of <length, id>
+// pairs (the length being the length of the next identifier), and finally E.
+//
+// For functions, this is then followed by the type information
+//
+// namespace wikipedia 
+// {
+//    class myclass
+//    {
+//        public:
+//            // -> _ZN9wikipedia7myclass5myfunEiiRN4wiki7articleE
+//            int myfun (int a, int b, wiki::article &ar);
+//    };
+// }
+//
+//  <builtin-type> ::= v    # void
+//         ::= w    # wchar_t
+//         ::= b    # bool
+//         ::= c    # char
+//         ::= a    # signed char
+//         ::= h    # unsigned char
+//         ::= s    # short
+//         ::= t    # unsigned short
+//         ::= i    # int
+//         ::= j    # unsigned int
+//         ::= l    # long
+//         ::= m    # unsigned long
+//         ::= x    # long long, __int64
+//         ::= y    # unsigned long long, __int64
+//         ::= n    # __int128
+//         ::= o    # unsigned __int128
+//         ::= f    # float
+//         ::= d    # double
+//         ::= e    # long double, __float80
+//         ::= g    # __float128
+//         ::= z    # ellipsis
+//                 ::= Dd # IEEE 754r decimal floating point (64 bits)
+//                 ::= De # IEEE 754r decimal floating point (128 bits)
+//                 ::= Df # IEEE 754r decimal floating point (32 bits)
+//                 ::= Dh # IEEE 754r half-precision floating point (16 bits)
+//                 ::= DF <number> _ # ISO/IEC TS 18661 binary floating point type _FloatN (N bits), C++23 std::floatN_t
+//                 ::= DF <number> x # IEEE extended precision formats, C23 _FloatNx (N bits)
+//                 ::= DF16b # C++23 std::bfloat16_t
+//                 ::= DB <number> _        # C23 signed _BitInt(N)
+//                 ::= DB <instantiation-dependent expression> _ # C23 signed _BitInt(N)
+//                 ::= DU <number> _        # C23 unsigned _BitInt(N)
+//                 ::= DU <instantiation-dependent expression> _ # C23 unsigned _BitInt(N)
+//                 ::= Di # char32_t
+//                 ::= Ds # char16_t
+//                 ::= Du # char8_t
+//                 ::= Da # auto
+//                 ::= Dc # decltype(auto)
+//                 ::= Dn # std::nullptr_t (i.e., decltype(nullptr))
+//                 ::= [DS] DA  # N1169 fixed-point [_Sat] T _Accum
+//                 ::= [DS] DR  # N1169 fixed-point [_Sat] T _Fract
+//         ::= u <source-name> [<template-args>] # vendor extended type
+
+static bool _strappendN (char *buf, const char *s, size_t bufsize, size_t *offset, bool do_len)
+{
+    size_t l = strlen (s);
+    size_t r = bufsize-*offset;
+
+    if (do_len)
+    {
+        if (l>1000)
+            return false;
+        // room for len
+        if (r<5)
+            return false;
+
+        int n = snprintf (&buf[*offset], r, "%d", (int)l);
+        if (n<0)
+            return false;
+        *offset += n;
+        r -= n;
+    }
+
+    if (r<=l)
+        return false;
+    memcpy (&buf[*offset], s, l+1);
+    *offset += l;
+    return true;
+}
+
+static bool _strappendNName (S_pos pos, char *buf, IR_name name, S_symbol id, size_t bufsize, size_t *offset)
+{
+    if (name)
+    {
+        _strappendN (buf, "N", bufsize, offset, /*do_len=*/false);
+        for (IR_symNode sn=name->first; sn; sn=sn->next)
+        {
+            if (!sn->sym)
+                continue;
+
+            if (!_strappendN (buf, S_name(sn->sym), bufsize, offset, /*do_len=*/true))
+            {
+                EM_error (pos, "internal error: proc label too long");
+                return false;
+            }
+        }
+    }
+
+    if (id)
+    {
+        if (!_strappendN (buf, S_name(id), bufsize, offset, /*do_len=*/true))
+        {
+            EM_error (pos, "internal error: proc label too long");
+            return false;
+        }
+    }
+
+    _strappendN (buf, "E", bufsize, offset, /*do_len=*/false);
+
+    return true;
+}
+
+static bool _strappendNType (S_pos pos, char *buf, IR_type ty, size_t bufsize, size_t *offset)
+{
+    switch (ty->kind)
+    {
+        case Ty_boolean: return _strappendN (buf, "b", bufsize, offset, /*do_len=*/false);
+        case Ty_byte   : return _strappendN (buf, "h", bufsize, offset, /*do_len=*/false);
+        case Ty_sbyte  : return _strappendN (buf, "c", bufsize, offset, /*do_len=*/false);
+        case Ty_int16  : return _strappendN (buf, "s", bufsize, offset, /*do_len=*/false);
+        case Ty_uint16 : return _strappendN (buf, "t", bufsize, offset, /*do_len=*/false);
+        case Ty_int32  : return _strappendN (buf, "i", bufsize, offset, /*do_len=*/false);
+        case Ty_uint32 : return _strappendN (buf, "j", bufsize, offset, /*do_len=*/false);
+        case Ty_single : return _strappendN (buf, "f", bufsize, offset, /*do_len=*/false);
+        case Ty_double : return _strappendN (buf, "d", bufsize, offset, /*do_len=*/false);
+
+        case Ty_reference:
+            if (!_strappendN (buf, "R", bufsize, offset, /*do_len=*/false))
+                return false;
+            if (!_strappendNType (pos, buf, ty->u.ref, bufsize, offset))
+                return false;
+            break;
+
+        case Ty_class:
+            return _strappendNName (pos, buf, ty->u.cls.name, /*id=*/NULL, bufsize, offset);
+
+        case Ty_darray:
+        {
+            if (!_strappendN (buf, "A", bufsize, offset, /*do_len=*/false))
+                return false;
+            for (int dim=0; dim<ty->u.darray.numDims; dim++)
+            {
+                if (dim)
+                {
+                    if (!_strappendN (buf, "_", bufsize, offset, /*do_len=*/false))
+                        return false;
+                }
+
+                size_t r = bufsize-*offset;
+                int n = snprintf (&buf[*offset], r, "%d", (int)ty->u.darray.dims[dim]);
+                if (n<0)
+                    return false;
+                *offset += n;
+                r -= n;
+            }
+            if (!_strappendN (buf, "_", bufsize, offset, /*do_len=*/false))
+                return false;
+            if (!_strappendNType (pos, buf, ty->u.darray.elementType, bufsize, offset))
+                return false;
+            return true;
+        }
+
+        default:
+            assert(false); // FIXME
+    }
+
+    return true;
+}
+
+static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, size_t buf_len)
+{
+    if (IR_procIsMain (proc))
+    {
+        strncat (buf, _MAIN_LABEL, buf_len);
+        return true;
+    }
+
+    size_t offset = 0;
+
+    _strappendN (buf, "__Z", buf_len, &offset, /*do_len=*/false);
+
+    _strappendNName (proc->pos, buf, clsOwnerName, proc->id, buf_len, &offset);
+
+    IR_formal f = proc->formals;
+    if (clsOwnerName)
+        f = f->next;
+    if (f)
+    {
+        while (f)
+        {
+            IR_type ty = f->ty;
+            _strappendNType (proc->pos, buf, ty, buf_len, &offset);
+            f = f->next;
+        }
+        _strappendN (buf, "E", buf_len, &offset, /*do_len=*/false);
+    }
+
+    return true;
+}
+
 static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespace parent)
 {
     if (!proc->returnTy)
@@ -1065,6 +1289,12 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
         if (!formal->ty)
             formal->ty = _elaborateTypeDesignator (formal->td, parentContext, parent);
     }
+
+    char labelbuf[MAX_LABEL_LEN];
+    if (!_procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN))
+        return;
+
+    proc->label = Temp_namedlabel(String (UP_ir, labelbuf));
 
     if (!proc->isExtern)
     {
@@ -1130,9 +1360,9 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
 
 static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context, IR_namespace parent)
 {
-    S_pos pos = method->proc->pos;
-
     _elaborateProc (method->proc, context, parent);
+
+    S_pos pos = method->proc->pos;
 
     // check existing entries: is this an override?
     int16_t vTableIdx = -1;
@@ -1144,44 +1374,58 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
             existingMember = IR_findMember (tyCls->u.cls.baseTy, method->proc->id, /*checkbase=*/true);
         if (existingMember)
         {
-            if (existingMember->kind != IR_recMethod)
+            if (existingMember->kind != IR_recMethods)
             {
                 EM_error (pos, "%s is already declared as something other than a method",
                           S_name(method->proc->id));
                 return;
             }
 
-            if (method->isVirtual)
+            IR_method existingMethod=NULL;
+            for (IR_method m=existingMember->u.methods->first; m; m=m->next)
             {
-                EM_error (pos, "%s: a virtual method of this signature already exists in a base class, use override instead.",
-                          S_name(method->proc->id));
-                return;
+                if (m->proc->label == method->proc->label)
+                {
+                    existingMethod = m;
+                    break;
+                }
             }
 
-            if (method->isOverride)
+            if (existingMethod)
             {
-                if (!existingMember->u.method->isVirtual)
+                if (method->isVirtual)
                 {
-                    EM_error (pos, "%s: only virtual methods can be overriden",
+                    EM_error (pos, "%s: a virtual method of this signature already exists in a base class, use override instead.",
                               S_name(method->proc->id));
                     return;
                 }
 
-                if (!matchProcSignatures (method->proc, existingMember->u.method->proc))
+                if (method->isOverride)
                 {
-                    EM_error (pos, "%s: virtual method override signature mismatch",
-                              S_name(method->proc->id));
+                    if (!existingMethod->isVirtual)
+                    {
+                        EM_error (pos, "%s: only virtual methods can be overriden",
+                                  S_name(method->proc->id));
+                        return;
+                    }
+
+                    // FIXME: remove? (we already matched mangled labels above)
+                    //if (!matchProcSignatures (method->proc, existingMethod->proc))
+                    //{
+                    //    EM_error (pos, "%s: virtual method override signature mismatch",
+                    //              S_name(method->proc->id));
+                    //    return;
+                    //}
+
+                    vTableIdx = existingMethod->vTableIdx;
+                }
+                else
+                {
+                    if (existingMethod->isVirtual)
+                        EM_error (pos, "%s: use the override keyword to override a virtual method.",
+                                  S_name(method->proc->id));
                     return;
                 }
-
-                vTableIdx = existingMember->u.method->vTableIdx;
-            }
-            else
-            {
-                if (existingMember->u.method->isVirtual)
-                    EM_error (pos, "%s: use the override keyword to override a virtual method.",
-                              S_name(method->proc->id));
-                return;
             }
         }
         else
@@ -1212,6 +1456,12 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
     method->vTableIdx = vTableIdx;
 }
 
+static void _elaborateMethodGroup (IR_methodGroup mg, IR_type tyCls, SEM_context context, IR_namespace parent)
+{
+    for (IR_method method=mg->first; method; method=method->next)
+        _elaborateMethod (method, tyCls, context, parent);
+}
+
 static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 {
     assert (tyCls->kind == Ty_class);
@@ -1225,10 +1475,15 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
     {
         switch (member->kind)
         {
-            case IR_recMethod:
-                if (member->u.method->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+            case IR_recMethods:
+            {
+                for (IR_method m=member->u.methods->first; m; m=m->next)
+                {
+                    if (m->vTableIdx >= 0)
+                        CG_dataFragSetPtr (vTableFrag, m->proc->label, m->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                }
                 break;
+            }
             case IR_recProperty:
                 if (member->u.property.getter && member->u.property.getter->vTableIdx >= 0)
                     CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
@@ -1345,7 +1600,9 @@ static void _assembleVTables (IR_type tyCls)
     IR_proc proc = IR_Proc (pos, IR_visPublic, IR_pkConstructor, tyCls, S_Symbol("__init"),
                                    /*isExtern=*/false, /*isStatic=*/false);
     proc->formals = formals;
-    proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyCls->u.cls.name));
+    char labelbuf[MAX_LABEL_LEN];
+    _procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN);
+    proc->label = Temp_namedlabel(String(UP_ir, labelbuf));
 
     tyCls->u.cls.__init = proc;
 
@@ -1611,9 +1868,9 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
     {
         switch (member->kind)
         {
-            case IR_recMethod:
+            case IR_recMethods:
                 // FIXME: static type initializer context?
-                _elaborateMethod (member->u.method, tyCls, /*context=*/NULL, names);
+                _elaborateMethodGroup (member->u.methods, tyCls, /*context=*/NULL, names);
                 break;
             case IR_recField:
                 continue;

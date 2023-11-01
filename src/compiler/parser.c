@@ -1456,7 +1456,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         return;
     }
 
-    S_symbol name = S_tkn.u.sym;
+    S_symbol id = S_tkn.u.sym;
     S_nextToken();
 
     if (S_tkn.kind == S_LESS)
@@ -1470,14 +1470,29 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     {
         S_nextToken();
 
-        IR_member member = IR_findMember (tyOwner, name, /*checkbase=*/false);
+        IR_member member = IR_findMember (tyOwner, id, /*checkbase=*/false);
+        IR_methodGroup mg = NULL;
         if (member)
         {
-            EM_error (pos, "Duplicate UDT entry.");
-            return;
+            if (member->kind != IR_recMethods)
+            {
+                EM_error (pos, "%s already declared as something other than a method.", S_name (id));
+                return;
+            }
+            mg = member->u.methods;
+            if (member->visibility != visibility)
+            {
+                EM_error (pos, "%s visibility mismatch", S_name (id));
+                return;
+            }
+        }
+        else
+        {
+            mg = IR_MethodGroup ();
+            IR_addMember (ml, IR_MemberMethodGroup (visibility, id, mg));
         }
 
-        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
+        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, id, isExtern, isStatic);
 
         proc->block = IR_Block (pos, parent);
 
@@ -1525,8 +1540,6 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         proc->formals  = formals;
         proc->returnTd = td;
 
-        proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
-
         if (S_tkn.kind == S_LBRACE)
         {
             IR_block b = _block (proc->block->names);
@@ -1547,9 +1560,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         }
 
         IR_method method = IR_Method(proc, isVirtual, isOverride);
-        member = IR_MemberMethod (visibility, method);
-
-        IR_addMember (ml, member);
+        IR_methodGroupAdd (mg, method);
     }
     else
     {
@@ -1576,7 +1587,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
                 return;
             }
 
-            IR_member member = IR_MemberField (visibility, name, td);
+            IR_member member = IR_MemberField (visibility, id, td);
             IR_addMember (ml, member);
 
             if (S_tkn.kind != S_COMMA)
@@ -1590,7 +1601,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
                 return;
             }
 
-            name = S_tkn.u.sym;
+            id = S_tkn.u.sym;
             S_nextToken();
         }
 

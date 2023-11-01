@@ -28,6 +28,7 @@ typedef struct IR_implements_             *IR_implements;
 typedef struct IR_memberList_             *IR_memberList;
 typedef struct IR_member_                 *IR_member;
 typedef struct IR_method_                 *IR_method;
+typedef struct IR_methodGroup_            *IR_methodGroup;
 
 typedef struct IR_argumentList_           *IR_argumentList;
 typedef struct IR_argument_               *IR_argument;
@@ -262,24 +263,24 @@ struct IR_const_
 
 struct IR_member_
 {
-    IR_member                                          next;
-    enum { IR_recMethod, IR_recField, IR_recProperty } kind;
-    S_symbol                                           id;
-    IR_visibility                                      visibility;
+    IR_member                                           next;
+    enum { IR_recMethods, IR_recField, IR_recProperty } kind;
+    S_symbol                                            id;
+    IR_visibility                                       visibility;
     union
     {
-        IR_method                                      method;
+        IR_methodGroup                                  methods;
         struct {
             uint32_t          uiOffset;
             IR_typeDesignator td;
             IR_type           ty;
-        }                                              field;
+        }                                               field;
         struct {
             IR_typeDesignator td;
             IR_type           ty;
             IR_method         getter;
             IR_method         setter;
-        }                                              property;
+        }                                               property;
     } u;
 };
 
@@ -301,6 +302,12 @@ struct IR_method_
     bool      isVirtual;
     bool      isOverride;
     int16_t   vTableIdx;
+    IR_method next;
+};
+
+struct IR_methodGroup_
+{
+    IR_method   first, last;
 };
 
 struct IR_block_
@@ -394,7 +401,6 @@ IR_variable        IR_Variable           (S_pos pos, S_symbol id, IR_typeDesigna
 IR_formal          IR_Formal             (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg, bool isParams);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
-string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, IR_name name);
 IR_type            IR_TypeDArray         (S_pos pos, int numDims, IR_type elementType);
@@ -418,9 +424,11 @@ IR_const           IR_ConstString        (IR_type ty, string   s);
 int32_t            IR_constGetI32        (S_pos pos, IR_const c);
 
 IR_method          IR_Method             (IR_proc proc, bool isVirtual, bool isOverride);
+IR_methodGroup     IR_MethodGroup        (void);
+void               IR_methodGroupAdd     (IR_methodGroup mg, IR_method method);
 
 IR_memberList      IR_MemberList         (void);
-IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
+IR_member          IR_MemberMethodGroup  (IR_visibility visibility, S_symbol id, IR_methodGroup mg);
 IR_member          IR_MemberField        (IR_visibility visibility, S_symbol id, IR_typeDesignator td);
 void               IR_fieldCalcOffset    (IR_type ty, IR_member field);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
