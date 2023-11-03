@@ -152,13 +152,11 @@ struct IR_proc_
 };
 
 
-// the first 2 class vtable entries are special:
+// the first vtable entry is special:
 // #0: type desc pointer
-// #1: garbage collector's gc_scan virtual function
 
-#define VTABLE_SPECIAL_ENTRY_NUM       2
+#define VTABLE_SPECIAL_ENTRY_NUM       1
 #define VTABLE_SPECIAL_ENTRY_TYPEDESC  0
-#define VTABLE_SPECIAL_ENTRY_GCSCAN    1
 
 // FIXME
 #define MAX_ARRAY_DIMS                 5

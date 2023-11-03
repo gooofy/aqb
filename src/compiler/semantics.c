@@ -55,6 +55,7 @@ static S_symbol S__MarkBlack;
 static S_symbol S_Assert;
 static S_symbol S_Debug;
 static S_symbol S_Diagnostics;
+static S_symbol S___gc_scan;
 
 //static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
@@ -534,9 +535,11 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
     {
         switch (e->kind)
         {
+            case IR_neFormal:
+                // handled by _elaborateProc
+                break;
             case IR_neNames:
             case IR_neType:
-            case IR_neFormal:
             case IR_neMember:
                 assert(false); // FIXME
                 break;
@@ -1310,16 +1313,6 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
             assert(false);
         }
 
-        // FIXME lenv = E_EnvScopes(lenv);   // local variables, consts etc.
-
-        CG_itemListNode iln = funFrame->formals->first;
-        for (IR_formal formals = proc->formals;
-             formals; formals = formals->next, iln = iln->next)
-        {
-            assert(false);
-            //E_declareVFC(lenv, formals->name, &iln->item);
-        }
-
         AS_instrList code = AS_InstrList();
         SEM_context context = _SEM_Context (parentContext);
         context->code     = code;
@@ -1340,7 +1333,17 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
             CG_NoneItem (&context->returnVar);
         }
 
+        CG_itemListNode iln = funFrame->formals->first;
+        for (IR_formal formal = proc->formals;
+             formal; formal = formal->next, iln = iln->next)
+        {
+            SEM_item *se = _SEM_Item (SIK_cg);
+            se->u.cg = iln->item;
+            TAB_enter (context->entries, formal->id, se);
+        }
+
         context->names = proc->block->names;
+
         _elaborateNames (proc->block->names, context);
 
         for (IR_statement stmt=proc->block->first; stmt; stmt=stmt->next)
@@ -1496,93 +1499,6 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
     }
 }
 
-static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string clsLabel)
-{
-    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan", clsLabel));
-    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
-
-    if (!OPT_gcScanExtern)
-    {
-        //IR_member entry = IR_findMember (_g_clsSystemGC, S__MarkBlack, /*checkBase=*/true);
-        //S_symbol gcMarkBlackSym = S_Symbol("GC_MARK_BLACK");
-        //E_enventryList lx = E_resolveSub(g_sleStack->env, gcMarkBlackSym);
-        //if (lx)
-        //{
-        //    E_enventry gcMarkBlackSub = lx->first->e;
-
-        IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
-        formals->ty = IR_getReference(pos, tyCls);
-
-        formals->next = IR_Formal(S_noPos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
-        formals->next->ty = _getSystemGCType();
-
-        CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
-        AS_instrList il = AS_InstrList();
-
-        for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
-        {
-            if (member->kind != IR_recField)
-                continue;
-
-            IR_type ty = member->u.field.ty;
-
-            switch (ty->kind)
-            {
-                case Ty_reference:
-                {
-                    switch (ty->u.ref->kind)
-                    {
-                        case Ty_class:
-                        {
-                            // FIXME: inline?
-                            CG_itemList gcMarkBlackArglist = CG_ItemList();
-
-                            CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
-                            n->item = frame->formals->first->item; // <this>
-                            CG_transField(il, pos, frame, &n->item, member);
-                            CG_loadVal (il, pos, frame, &n->item);
-
-                            _transCallBuiltinMethod(pos, _getSystemGCType()->u.ref, S__MarkBlack, gcMarkBlackArglist, il, frame, /*result=*/NULL);
-                            break;
-                        }
-
-                        default:
-                            assert(false);
-                    }
-                    break;
-                }
-
-                // FIXME case Ty_sarray:
-                // FIXME case Ty_darray:
-                // FIXME case Ty_record:
-                // FIXME case Ty_any:
-                case Ty_class:
-                    assert(false); // FIXME: implement
-                default:
-                    continue;
-            }
-        }
-
-        if (!il->first)
-            CG_transNOP (il, pos);
-
-        CG_procEntryExit(pos,
-                         frame,
-                         il,
-                         /*returnVar=*/NULL,
-                         /*exitlbl=*/ exitlabel,
-                         /*is_main=*/false,
-                         /*expt=*/true);
-        //}
-        //else
-        //{
-        //    EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
-        //}
-    }
-
-    return label;
-}
-
 static void _assembleVTables (IR_type tyCls)
 {
     S_pos pos = tyCls->pos;
@@ -1616,9 +1532,7 @@ static void _assembleVTables (IR_type tyCls)
 
     _assembleClassVTable (vTableFrag, tyCls);
     // set up vTable special entries
-    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel         (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
-    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos, clsLabel), VTABLE_SPECIAL_ENTRY_GCSCAN);
-
+    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel (tyCls), VTABLE_SPECIAL_ENTRY_TYPEDESC);
 
     if (!tyCls->u.cls.virtualMethodCnt)
     {
@@ -1810,12 +1724,114 @@ static void _assembleVTables (IR_type tyCls)
                      /*expt=*/true);
 }
 
+static IR_member _assembleClassGCScanMethod (IR_type tyCls)
+{
+    S_pos pos = tyCls->pos;
+
+    IR_formal formals = IR_Formal(pos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
+    formals->ty = IR_getReference(pos, tyCls);
+
+    formals->next = IR_Formal(pos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
+    formals->next->ty = _getSystemGCType();
+
+    IR_proc proc = IR_Proc (pos, IR_visPrivate, IR_pkFunction, tyCls, S___gc_scan,
+                            /*isExtern=*/OPT_gcScanExtern, /*isStatic=*/false);
+    proc->formals = formals;
+    char labelbuf[MAX_LABEL_LEN];
+    _procGenerateLabel (proc, tyCls->u.cls.name, labelbuf, MAX_LABEL_LEN);
+
+    proc->label = Temp_namedlabel(String(UP_ir, labelbuf));
+    proc->returnTd = IR_TypeDesignator (/*name=*/NULL); // void
+
+    if (!OPT_gcScanExtern)
+    {
+        string clsLabel = IR_name2string (tyCls->u.cls.name, "_");
+        Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
+        //IR_member entry = IR_findMember (_g_clsSystemGC, S__MarkBlack, /*checkBase=*/true);
+        //S_symbol gcMarkBlackSym = S_Symbol("GC_MARK_BLACK");
+        //E_enventryList lx = E_resolveSub(g_sleStack->env, gcMarkBlackSym);
+        //if (lx)
+        //{
+        //    E_enventry gcMarkBlackSub = lx->first->e;
+
+        CG_frame frame = CG_Frame(pos, proc->label, formals, /*statc=*/true);
+        AS_instrList il = AS_InstrList();
+
+        for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
+        {
+            if (member->kind != IR_recField)
+                continue;
+
+            IR_type ty = member->u.field.ty;
+
+            switch (ty->kind)
+            {
+                case Ty_reference:
+                {
+                    switch (ty->u.ref->kind)
+                    {
+                        case Ty_class:
+                        {
+                            // FIXME: inline?
+                            CG_itemList gcMarkBlackArglist = CG_ItemList();
+
+                            CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
+                            n->item = frame->formals->first->item; // <this>
+                            CG_transField(il, pos, frame, &n->item, member);
+                            CG_loadVal (il, pos, frame, &n->item);
+
+                            _transCallBuiltinMethod(pos, _getSystemGCType()->u.ref, S__MarkBlack, gcMarkBlackArglist, il, frame, /*result=*/NULL);
+                            break;
+                        }
+
+                        default:
+                            assert(false);
+                    }
+                    break;
+                }
+
+                // FIXME case Ty_sarray:
+                // FIXME case Ty_darray:
+                // FIXME case Ty_record:
+                // FIXME case Ty_any:
+                case Ty_class:
+                    assert(false); // FIXME: implement
+                default:
+                    continue;
+            }
+        }
+
+        if (!il->first)
+            CG_transNOP (il, pos);
+
+        CG_procEntryExit(pos,
+                         frame,
+                         il,
+                         /*returnVar=*/NULL,
+                         /*exitlbl=*/ exitlabel,
+                         /*is_main=*/false,
+                         /*expt=*/true);
+        //}
+        //else
+        //{
+        //    EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
+        //}
+    }
+
+    IR_type tyBase = tyCls->u.cls.baseTy;
+    IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/(tyBase==NULL), /*isOverride=*/(tyBase != NULL));
+    IR_methodGroup mg = IR_MethodGroup();
+    IR_methodGroupAdd (mg, gcscanmethod);
+    IR_member gcscanmember = IR_MemberMethodGroup (IR_visPrivate, S___gc_scan, mg);
+
+    return gcscanmember;
+}
+
 static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
 
     //S_pos pos = tyCls->pos;
-
 
     if (tyCls->u.cls.baseTd)
         tyCls->u.cls.baseTy = _elaborateTypeDesignator (tyCls->u.cls.baseTd, /*context=*/NULL, parent);
@@ -1864,7 +1880,22 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
      * elaborate methods
      */
 
-    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
+    // take care of __gc_scan method - has to be the very first vtable entry for our GC to find it
+
+    IR_member gcscanmember = _assembleClassGCScanMethod (tyCls);
+
+    IR_memberList ml = tyCls->u.cls.members;
+    if (ml->first)
+    {
+        gcscanmember->next = ml->first;
+        ml->first = gcscanmember;
+    }
+    else
+    {
+        ml->first = ml->last = gcscanmember;
+    }
+
+    for (IR_member member = ml->first; member; member=member->next)
     {
         switch (member->kind)
         {
@@ -2359,5 +2390,6 @@ void SEM_boot(void)
     S_Diagnostics    = S_Symbol("Diagnostics");
     S_Array          = S_Symbol("Array");
     S_Type           = S_Symbol("Type");
+    S___gc_scan      = S_Symbol("__gc_scan");
 }
 

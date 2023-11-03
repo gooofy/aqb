@@ -174,6 +174,7 @@ static void _writeFormal (FILE *cstubf, IR_formal formal)
     fprintf (cstubf, "%s%s", S_name(formal->id), formal->next ? ", ":"");
 }
 
+#if 0
 static void _writeStubSpecial (FILE *cstubf, IR_type tyCls, bool writeBody, char *methodName)
 {
     fprintf (cstubf, "VOID _%s___%s (%s *this, System_GC *gc)", IR_name2string(tyCls->u.cls.name, "_"), methodName, IR_name2string(tyCls->u.cls.name, "_"));
@@ -189,6 +190,7 @@ static void _writeStubSpecial (FILE *cstubf, IR_type tyCls, bool writeBody, char
         fprintf (cstubf, ";\n");
     }
 }
+#endif
 
 static void _writeStubMethod (FILE *cstubf, IR_type tyCls, IR_proc proc, bool writeBody)
 {
@@ -285,7 +287,7 @@ static void _writeStubMethods (FILE *cstubf, IR_definition defs, bool writeBody)
         if (ty->kind != Ty_class)
             continue;
 
-        _writeStubSpecial (cstubf, ty, writeBody, "gc_scan");
+        //_writeStubSpecial (cstubf, ty, writeBody, "gc_scan");
         //_writeStubSpecial (cstubf, ty, writeBody, "gc_finalize");
         _writeStubMethodsRec (cstubf, ty, writeBody);
     }

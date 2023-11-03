@@ -295,7 +295,6 @@ bool IR_saveAssembly (IR_assembly assembly, string symfn)
     return true;
 }
 
-#if 0
 static int16_t fread_i2(void)
 {
     int16_t i;
@@ -306,7 +305,6 @@ static int16_t fread_i2(void)
 
     return i;
 }
-#endif // 0
 
 static uint32_t fread_u4(void)
 {
@@ -513,10 +511,16 @@ static IR_memberList _deserializeIRMemberList (void)
         {
             case IR_recMethods:
             {
-                assert(false); // FIXME
-                //IR_proc proc = _deserializeIRProc ();
-                //member->u.method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
-                //member->u.method->vTableIdx = fread_i2();
+                IR_methodGroup mg = IR_MethodGroup();
+                member->u.methods = mg;
+                int cnt = fread_u2();
+                for (int i=0; i<cnt; i++)
+                {
+                    IR_proc proc = _deserializeIRProc ();
+                    IR_method method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
+                    method->vTableIdx = fread_i2();
+                    IR_methodGroupAdd (mg, method);
+                }
                 break;
             }
             case IR_recField:
