@@ -151,7 +151,10 @@ static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res
     return false;
 }
 
-#if 0 // FIXME
+
+static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names);
+static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
+
 static bool _checkImplements (IR_type ty, IR_type tyIntf)
 {
     assert (tyIntf->kind == Ty_interface);
@@ -180,7 +183,7 @@ static bool _checkImplements (IR_type ty, IR_type tyIntf)
     return false;
 }
 
-static bool _compatible_ty(IR_type tyFrom, IR_type tyTo)
+static bool _compatible_ty(IR_type tyFrom, IR_type tyTo, int *cost)
 {
     if (tyTo == tyFrom)
         return true;
@@ -196,6 +199,7 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo)
         case Ty_uint32:
         case Ty_single:
         case Ty_double:
+            // FIXME: check if cast is possible, return true+cost if so
             return tyFrom->kind == tyTo->kind;
 
         // FIXME
@@ -238,14 +242,26 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo)
             {
                 while (tyFromRef && (tyFromRef != tyToRef) && (tyFromRef->u.cls.baseTy))
                     tyFromRef = tyFromRef->u.cls.baseTy;
-                return tyToRef == tyFromRef;
+                if (tyToRef == tyFromRef)
+                {
+                    *cost += 1;
+                    return true;
+                }
+                return false;
             }
 
             // OOP: class -> implemented interface assignment is legal
             if ( (tyToRef->kind == Ty_class) && (tyFromRef->kind == Ty_interface) )
-                return _checkImplements (tyToRef, tyFromRef);
+            {
+                if (_checkImplements (tyToRef, tyFromRef))
+                {
+                    *cost += 1;
+                    return true;
+                }
+                return false;
+            }
 
-            return _compatible_ty(tyFromRef, tyToRef);
+            return _compatible_ty(tyFromRef, tyToRef, cost);
 
         // FIXME
         //case Ty_sarray:
@@ -388,6 +404,7 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo)
     return false;
 }
 
+#if 0
 static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
 {
     // check proc signature
@@ -407,25 +424,114 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
         return false;
     return true;
 }
-#endif // 0
+#endif
 
-static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names);
-static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
+static bool _isDebugAssert (IR_method method)
+{
+    if (method->proc->id != S_Assert)
+        return false;
+    IR_type thisTy = method->proc->tyOwner;
+    assert (thisTy->kind == Ty_class);
+    IR_name n = thisTy->u.cls.name;
+    if (!n->first->next || !n->first->next->next || (n->first->next->next != n->last) )
+        return false;
+    if ((n->first->sym != S_System) || (n->last->sym != S_Debug) || (n->first->next->sym != S_Diagnostics))
+        return false;
+    return true;
+}
+
+static bool _transCallMethod(S_pos pos, IR_methodGroup mg, CG_itemList arglist,
+                             AS_instrList code, CG_frame frame, SEM_item *res)
+{
+    // find best match between method signatures in this group and actual arg list
+
+    IR_method bestMethod    = NULL;
+    int       bestCost      = INT_MAX;
+    bool      bestIsVarArgs = false;
+
+    for (IR_method cand=mg->first; cand; cand=cand->next)
+    {
+        int  cost      = 0;
+        bool isVarArgs = false;
+
+        IR_formal f=cand->proc->formals;
+        CG_itemListNode arg = arglist->first;
+        while (f && arg)
+        {
+            // varargs?
+            if (f->isParams)
+            {
+                cost += 100;
+                f         = NULL;
+                arg       = NULL;
+                isVarArgs = true;
+                break;
+            }
+
+            IR_type argTy = arg->item.ty;
+            IR_type fTy   = f->ty;
+
+            int c = 0;
+            if (!_compatible_ty(/*tyFrom=*/argTy, /*tyTo=*/fTy, &c))
+            {
+                break;
+            }
+            cost += c;
+            f = f->next;
+            arg = arg->next;
+        }
+
+        if (f || arg)
+            continue;
+
+        if (cost < bestCost)
+        {
+            bestMethod    = cand;
+            bestCost      = cost;
+            bestIsVarArgs = isVarArgs;
+        }
+    }
+
+    if (!bestMethod)
+        return EM_error (pos, "no matching method for actual params found");
+
+    assert (!bestIsVarArgs); // FIXME: implement varargs support (i.e. transform arglist)
+    for (CG_itemListNode arg = arglist->first; arg; arg=arg->next)
+    {
+        CG_loadVal (code, pos, frame, &arg->item);
+    }
+
+    // FIXME: Debug.Assert special
+    if (_isDebugAssert (bestMethod))
+    {
+        assert(false); // FIXME
+        //CG_itemList args2 = CG_ItemList();
+        //CG_itemListNode n = CG_itemListAppend(args2);
+        //CG_StringItem (context->code, expr->pos, &n->item, strprintf (UP_ir, "%s:%d:%d: debug assertion failed", PA_filename ? PA_filename : "???", expr->pos.line, expr->pos.col));
+        //n = CG_itemListAppend(args2);
+        //CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
+
+        //n = CG_itemListAppend(args);
+        //SEM_item semStr;
+        //_transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args2, context->code, context->frame, &semStr);
+        //n->item = semStr.u.cg;
+    }
+
+    res->kind = SIK_cg;
+    CG_transMethodCall(code, pos, frame, bestMethod, arglist, &res->u.cg);
+    return true;
+}
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
                                     AS_instrList code, CG_frame frame, SEM_item *res)
 {
-    assert(false); // FIXME
-    //assert (tyCls->kind == Ty_class);
+    assert (tyCls->kind == Ty_class);
 
-    //IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
-    //if (!entry || (entry->kind != IR_recMethod))
-    //    return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
+    IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
+    if (!entry || (entry->kind != IR_recMethods))
+        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
 
-    //IR_method method = entry->u.method;
-    //res->kind = SIK_cg;
-    //CG_transMethodCall(code, pos, frame, method, arglist, &res->u.cg);
-    return true;
+    return _transCallMethod (pos, entry->u.methods, arglist, code, frame, res);
 }
 
 static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit)
@@ -550,30 +656,8 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
     }
 }
 
-// FIXME
-#if 0
-static bool _isDebugAssert (SEM_item *fun)
-{
-    if (fun->kind != SIK_member)
-        return false;
-    if (fun->u.member.m->id != S_Assert)
-        return false;
-    if (fun->u.member.thisTy->kind != Ty_reference || fun->u.member.thisTy->u.ref->kind != Ty_class)
-        return false;
-    IR_name n = fun->u.member.thisTy->u.ref->u.cls.name;
-    if (!n->first->next || !n->first->next->next || (n->first->next->next != n->last) )
-        return false;
-    if ((n->first->sym != S_System) || (n->last->sym != S_Debug) || (n->first->next->sym != S_Diagnostics))
-        return false;
-    return true;
-}
-#endif // 0
-
 static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_item *res)
 {
-    assert(false); // FIXME
-    return false;
-#if 0
     S_pos pos = expr->pos;
     SEM_item fun;
     if (!_elaborateExpression (expr->u.call.fun, context, &fun))
@@ -581,62 +665,27 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         EM_error (pos, "failed to elaborate method");
         return false;
     }
-    if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethod))
+    if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethods))
     {
         EM_error (pos, "tried to call something that is not a method");
         return false;
     }
 
-    IR_method m = fun.u.member.m->u.method;
-
-    IR_proc proc = m->proc;
+    // elaborate actual arguments
     CG_itemList args = CG_ItemList();
-
-    if (!proc->isStatic)
-    {
-        // FIXME: this reference
-        assert(false);
-    }
-
-    IR_formal f = proc->formals;
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
-        if (!f)
-        {
-            EM_error (a->e->pos, "too many arguments");
-            return false;
-        }
-        assert (!f->reg); // FIXME
-        assert (!f->defaultExp); // FIXME
-        assert (!f->isParams); // FIXME
-        CG_itemListNode n = CG_itemListAppend(args);
         SEM_item item;
         if (!_elaborateExpression (a->e, context, &item))
             return false;
-        assert (item.kind == SIK_cg); // FIXME
+
+        assert (item.kind == SIK_cg); // FIXME: members
+
+        CG_itemListNode n = CG_itemListAppend(args);
         n->item = item.u.cg;
-        CG_loadVal (context->code, pos, context->frame, &n->item);
-        f = f->next;
     }
 
-    // FIXME: Debug.Assert special
-    if (_isDebugAssert (&fun))
-    {
-        CG_itemList args2 = CG_ItemList();
-        CG_itemListNode n = CG_itemListAppend(args2);
-        CG_StringItem (context->code, expr->pos, &n->item, strprintf (UP_ir, "%s:%d:%d: debug assertion failed", PA_filename ? PA_filename : "???", expr->pos.line, expr->pos.col));
-        n = CG_itemListAppend(args2);
-        CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
-
-        n = CG_itemListAppend(args);
-        SEM_item semStr;
-        _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args2, context->code, context->frame, &semStr);
-        n->item = semStr.u.cg;
-    }
-
-    res->kind = SIK_cg;
-    return CG_transMethodCall(context->code, expr->pos, context->frame, m, args, &res->u.cg);
-#endif // 0
+    return _transCallMethod(pos, fun.u.member.m->u.methods, args, context->code, context->frame, res);
 }
 
 static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1293,25 +1342,22 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
             formal->ty = _elaborateTypeDesignator (formal->td, parentContext, parent);
     }
 
-    char labelbuf[MAX_LABEL_LEN];
-    if (!_procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN))
-        return;
-
-    proc->label = Temp_namedlabel(String (UP_ir, labelbuf));
-
-    if (!proc->isExtern)
+    // internal __gc_scan has no proc->block -> no label so we can generate a NULL vtable entry later
+    if (proc->isExtern || proc->block)
     {
+        char labelbuf[MAX_LABEL_LEN];
+        if (!_procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN))
+            return;
 
+        proc->label = Temp_namedlabel(String (UP_ir, labelbuf));
+    }
+
+    if (!proc->isExtern && proc->block)
+    {
         CG_frame funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
 
         //E_env lenv = FE_mod->env;
         //E_env wenv = NULL;
-
-        if (proc->tyOwner && !proc->isStatic)
-        {
-            // FIXME lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
-            assert(false);
-        }
 
         AS_instrList code = AS_InstrList();
         SEM_context context = _SEM_Context (parentContext);
@@ -1332,6 +1378,14 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
         {
             CG_NoneItem (&context->returnVar);
         }
+
+        // FIXME make members available in local context
+
+        //if (proc->tyOwner && !proc->isStatic)
+        //{
+        //    // FIXME lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
+        //    assert(false);
+        //}
 
         CG_itemListNode iln = funFrame->formals->first;
         for (IR_formal formal = proc->formals;
@@ -1364,7 +1418,6 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
 static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context, IR_namespace parent)
 {
     _elaborateProc (method->proc, context, parent);
-
     S_pos pos = method->proc->pos;
 
     // check existing entries: is this an override?
@@ -1483,7 +1536,9 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
                 for (IR_method m=member->u.methods->first; m; m=m->next)
                 {
                     if (m->vTableIdx >= 0)
+                    {
                         CG_dataFragSetPtr (vTableFrag, m->proc->label, m->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                    }
                 }
                 break;
             }
@@ -1743,6 +1798,13 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
     proc->label = Temp_namedlabel(String(UP_ir, labelbuf));
     proc->returnTd = IR_TypeDesignator (/*name=*/NULL); // void
 
+    // when an external __gc_scan function is not requested,
+    // this proc has no body (block) resulting in a NULL vtable entry
+    // telling our GC to call its built-in __gc_scan method which uses
+    // the object's type descriptor to identify relevant fields
+
+    // FIXME: remove
+#if 0
     if (!OPT_gcScanExtern)
     {
         string clsLabel = IR_name2string (tyCls->u.cls.name, "_");
@@ -1753,6 +1815,10 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
         //if (lx)
         //{
         //    E_enventry gcMarkBlackSub = lx->first->e;
+
+        proc->block = IR_Block (pos, parent);
+        for (IR_formal f=formals; f; f=f->next)
+            IR_namesAddFormal (proc->block->names, f);
 
         CG_frame frame = CG_Frame(pos, proc->label, formals, /*statc=*/true);
         AS_instrList il = AS_InstrList();
@@ -1817,6 +1883,7 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
         //    EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
         //}
     }
+#endif
 
     IR_type tyBase = tyCls->u.cls.baseTy;
     IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/(tyBase==NULL), /*isOverride=*/(tyBase != NULL));
