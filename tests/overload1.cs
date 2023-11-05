@@ -11,13 +11,13 @@ namespace ConsoleApp10
     {
         static void f1(byte b)
         {
-            Console.WriteLine ("f1 byte called");
+            //Console.WriteLine ("f1 byte called");
             Debug.Assert(b==128);
         }
 
         static void f1(int a)
         {
-            Console.WriteLine ("f1 int called");
+            //Console.WriteLine ("f1 int called");
             Debug.Assert(a==1280);
         }
 

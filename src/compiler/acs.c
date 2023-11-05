@@ -398,6 +398,11 @@ int main (int argc, char *argv[])
     assembly_name = argv[optind++];
     IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
 
+    if (argc==optind)
+    {
+        fprintf (stderr, "*** error: no sources given.\n\n");
+        exit(EXIT_FAILURE);
+    }
     //LOG_printf (LOG_INFO, "assembly semantics\n");
     //SEM_elaborate (names_root);
 

@@ -208,7 +208,10 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo, int *cost)
         case Ty_double:
             if (tyFrom->kind == tyTo->kind)
                 return true;
-            *cost += 1;
+            if (tyFrom->kind < tyTo->kind)
+                *cost += 1;
+            else
+                *cost += 2;
             return true;
 
 
