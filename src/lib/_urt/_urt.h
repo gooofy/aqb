@@ -170,11 +170,12 @@ struct System_Object_
 
 // extern ULONG *_td__urt_COBJECT;
 
-VOID           _System_Object___gc_scan   (System_Object *this, System_GC *gc);
-VOID           _System_Object_Finalize    (System_Object *this);
-System_String *_System_Object_ToString    (System_Object *this);
-BOOL           _System_Object_Equals      (System_Object *this, System_Object *obj);
-LONG           _System_Object_GetHashCode (System_Object *this);
+VOID           _ZN6System6Object9__gc_scanEPN6System2GCEE  (System_Object *this, System_GC *gc);
+VOID           _ZN6System6Object9__gc_scanEN6System2GCEE   (System_Object *this, System_GC *gc);
+VOID           _ZN6System6Object8FinalizeE                 (System_Object *this);
+System_String *_ZN6System6Object8ToStringE                 (System_Object *this);
+BOOL           _ZN6System6Object6EqualsERN6System6ObjectEE (System_Object *this, System_Object *obj);
+LONG           _ZN6System6Object11GetHashCodeE             (System_Object *this);
 
 BOOL           __instanceof              (System_Object *obj, ULONG **td);
 
@@ -258,9 +259,10 @@ struct System_String_
     BOOL            _owned;
 };
 
-VOID           _System_String___init     (System_String *this);
-VOID           _System_String___gc_scan  (System_String *this, System_GC *gc);
-System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
+VOID           _System_String___init (System_String *obj);
+VOID           _ZN6System6String9__gc_scanEPN6System2GCEE                    (System_String *this, System_GC *gc);
+System_String *_ZN6System6String6CreateEPhbE                                 (UBYTE    *initialBuffer, BOOL     owned);
+System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectEE (System_String *format, System_Array *args);
 
 struct System_Array_
 {
@@ -288,10 +290,10 @@ struct System_Console_
     UBYTE          __gc_color;
 };
 
-VOID _System_Console___gc_scan  (System_Console *this, System_GC *gc);
-VOID _System_Console_WriteLine  (System_String *value);
-VOID _System_Console_Write      (System_String *sstr);
-VOID _System_Console_WriteInt   (LONG     value);
+VOID _ZN6System7Console9__gc_scanEPN6System2GCEE     (System_Console *this, System_GC *gc);
+VOID _ZN6System7Console9WriteLineERN6System6StringEE (System_String *value);
+VOID _ZN6System7Console5WriteERN6System6StringEE     (System_String *value);
+VOID _ZN6System7Console5WriteEiE                     (LONG     value);
 
 struct System_Diagnostics_Debug_
 {
@@ -302,8 +304,8 @@ struct System_Diagnostics_Debug_
     UBYTE    __gc_color;
 };
 
-VOID _System_Diagnostics_Debug___gc_scan (System_Diagnostics_Debug *this, System_GC *gc);
-VOID _System_Diagnostics_Debug_Assert    (BOOL condition, System_String *compiler_msg); // FIXME: compiler_msg special
+VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCEE (System_Diagnostics_Debug *this, System_GC *gc);
+VOID _ZN6System11Diagnostics5Debug6AssertEbE                (BOOL condition, System_String *compiler_msg);
 
 void           GC_RUN                (void);
 void           GC_REGISTER           (System_Object *obj);

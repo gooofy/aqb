@@ -4080,12 +4080,14 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, I
                         CG_BoolItem (item, i!=0, to_ty);
                         return;
                     case Ty_byte:
-                    case Ty_sbyte:
-                    case Ty_int16:
                     case Ty_uint16:
-                    case Ty_int32:
                     case Ty_uint32:
                     case Ty_reference:
+                        CG_UIntItem (item, i, to_ty);
+                        return;
+                    case Ty_sbyte:
+                    case Ty_int16:
+                    case Ty_int32:
                         CG_IntItem (item, i, to_ty);
                         return;
                     case Ty_single:
@@ -4226,7 +4228,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, I
                     case Ty_uint16:
                         CG_loadVal (code, pos, frame, item);
                         AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_W, NULL,           // and.w  #255, t
-                                                            item->u.inReg, IR_ConstInt(IR_TypeUInt16(), 255), 0, NULL));
+                                                            item->u.inReg, IR_ConstUInt(IR_TypeUInt16(), 255), 0, NULL));
                         item->ty = to_ty;
                         break;
                     case Ty_int32:
@@ -4234,13 +4236,13 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, I
                     case Ty_reference:
                         CG_loadVal (code, pos, frame, item);
                         AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_L, NULL,           // and.l  #255, t
-                                                            item->u.inReg, IR_ConstInt(IR_TypeUInt16(), 255), 0, NULL));
+                                                            item->u.inReg, IR_ConstUInt(IR_TypeUInt16(), 255), 0, NULL));
                         item->ty = to_ty;
                         break;
                     case Ty_single:
                         CG_loadVal (code, pos, frame, item);
                         AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_L, NULL,           // and.l  #0xFF, t
-                                                            item->u.inReg, IR_ConstInt(IR_TypeUInt16(), 0xff), 0, NULL));
+                                                            item->u.inReg, IR_ConstUInt(IR_TypeUInt16(), 0xff), 0, NULL));
                         emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
                         item->ty = to_ty;
                         break;

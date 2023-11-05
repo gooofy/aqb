@@ -1,30 +1,30 @@
 #include "_urt.h"
 
-VOID _System_Object___gc_scan (System_Object *this, System_GC *gc)
+
+VOID _ZN6System6Object9__gc_scanEPN6System2GCEE (System_Object *this, System_GC *gc)
 {
-    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object gc_scan");
+    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object.__gc_scan");
 }
 
-VOID _System_Object_Finalize (System_Object *this)
+VOID _ZN6System6Object8FinalizeE (System_Object *this)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object.Finalize");
 }
 
-System_String *_System_Object_ToString (System_Object *this)
+System_String *_ZN6System6Object8ToStringE (System_Object *this)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object.ToString");
     return NULL;
 }
 
-BOOL _System_Object_Equals (System_Object *this, System_Object *obj)
+BOOL     _ZN6System6Object6EqualsERN6System6ObjectEE (System_Object *this, System_Object *obj)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object.Equals");
     return FALSE;
 }
 
-LONG _System_Object_GetHashCode (System_Object *this)
+LONG     _ZN6System6Object11GetHashCodeE (System_Object *this)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object.GetHashCode");
     return 0;
 }
-

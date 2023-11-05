@@ -15,14 +15,17 @@ typedef struct SEM_item_     SEM_item;
 struct SEM_context_
 {
     SEM_context   parent;
-    IR_namespace  names;
+
+    IR_namespace  ctxnames;
+    IR_type       ctxcls;
     AS_instrList  code;
     CG_frame      frame;
     Temp_label    exitlbl;
     Temp_label    contlbl;
     Temp_label    breaklbl;
     CG_item       returnVar;
-    TAB_table     entries; // symbol -> SEM_item
+
+    TAB_table     blockEntries; // symbol -> SEM_item
 };
 
 typedef enum
@@ -110,12 +113,12 @@ static SEM_context _SEM_Context (SEM_context parent)
 {
     SEM_context context = U_poolAllocZero (UP_ir, sizeof (*context));
 
-    context->parent  = parent;
-    context->entries = TAB_empty (UP_ir);
+    context->parent       = parent;
 
     if (parent)
     {
-        context->names     = parent->names;
+        context->ctxnames  = parent->ctxnames;
+        context->ctxcls    = parent->ctxcls;
         context->code      = parent->code;
         context->frame     = parent->frame;
         context->exitlbl   = parent->exitlbl;
@@ -123,6 +126,8 @@ static SEM_context _SEM_Context (SEM_context parent)
         context->breaklbl  = parent->breaklbl;
         context->returnVar = parent->returnVar;
     }
+
+    context->blockEntries = TAB_empty (UP_ir);
 
     return context;
 }
@@ -138,7 +143,7 @@ static SEM_item *_SEM_Item (SEM_itemKind kind)
 
 static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res)
 {
-    SEM_item *i2 = (SEM_item *) TAB_look (context->entries, sym);
+    SEM_item *i2 = (SEM_item *) TAB_look (context->blockEntries, sym);
     if (i2)
     {
         *res = *i2;
@@ -152,8 +157,10 @@ static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res
 }
 
 
-static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names);
+static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
+static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
+                                    SEM_context context, SEM_item *res);
 
 static bool _checkImplements (IR_type ty, IR_type tyIntf)
 {
@@ -199,8 +206,11 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo, int *cost)
         case Ty_uint32:
         case Ty_single:
         case Ty_double:
-            // FIXME: check if cast is possible, return true+cost if so
-            return tyFrom->kind == tyTo->kind;
+            if (tyFrom->kind == tyTo->kind)
+                return true;
+            *cost += 1;
+            return true;
+
 
         // FIXME
         //case Ty_class:
@@ -404,6 +414,212 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo, int *cost)
     return false;
 }
 
+static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit, SEM_context context)
+{
+    IR_type tyFrom = CG_ty(item);
+
+    if (tyFrom == tyTo)
+    {
+        return true;
+    }
+
+    switch (tyFrom->kind)
+    {
+        case Ty_boolean:
+            switch (tyTo->kind)
+            {
+                case Ty_boolean:
+                    item->ty = tyTo;
+                    return true;
+
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_int16:
+                case Ty_uint16:
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    CG_castItem(context->code, pos, context->frame, item, tyTo);
+                    return true;
+                default:
+                    return false;
+            }
+            break;
+
+        case Ty_sbyte:
+        case Ty_byte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+            if ((tyTo->kind == Ty_pointer) && explicit)
+            {
+                CG_castItem(context->code, pos, context->frame, item, tyTo);
+                return true;
+            }
+            /* fallthrough */
+        case Ty_uint32:
+            if ( (tyTo->kind == Ty_single) || (tyTo->kind == Ty_double) || (tyTo->kind == Ty_boolean) )
+            {
+                CG_castItem (context->code, pos, context->frame, item, tyTo);
+                return true;
+            }
+
+            // FIXME: remove because ANY type should be used instead
+            //if (tyTo->kind == Ty_pointer)
+            //{
+            //    item->ty = tyTo;
+            //    return true;
+            //}
+
+            if (IR_typeSize(tyFrom) == IR_typeSize(tyTo))
+            {
+                item->ty = tyTo;
+                return true;
+            }
+
+            switch (tyTo->kind)
+            {
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_uint16:
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_uint32:
+                    CG_castItem(context->code, pos, context->frame, item, tyTo);
+                    return true;
+                //case Ty_any:
+                //    if (Ty_isSigned(tyFrom))
+                //        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_Long());
+                //    else
+                //        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_ULong());
+                //    item->ty = tyTo;
+                //    return TRUE;
+
+                default:
+                    return false;
+            }
+            break;
+
+        case Ty_single:
+        case Ty_double:
+            if (tyFrom->kind == tyTo->kind)
+            {
+                item->ty = tyTo;
+                return true;
+            }
+
+            switch (tyTo->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_uint16:
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    CG_castItem (context->code, pos, context->frame, item, tyTo);
+                    return true;
+
+                default:
+                    return false;
+            }
+            break;
+
+        //case Ty_sarray:
+        case Ty_darray:
+        //case Ty_procPtr:
+        //case Ty_record:
+            assert(false); // FIXME
+            //if (!compatible_ty(tyFrom, tyTo))
+            //{
+            //    if (explicit)
+            //    {
+            //        CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+            //        return TRUE;
+            //    }
+            //    return FALSE;
+            //}
+            //item->ty = tyTo;
+            return true;
+
+        case Ty_pointer:
+            assert(false); // FIXME
+            //if (!compatible_ty(tyFrom, tyTo) || explicit)
+            //{
+            //    if (explicit)
+            //    {
+            //        CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+            //        return TRUE;
+            //    }
+            //    return FALSE;
+            //}
+            //else
+            //{
+            //    if (tyTo->kind == Ty_pointer)
+            //    {
+            //        // OOP: take care of pointer offset class <--> interface
+            //        Ty_ty tyFromPtr = tyFrom->u.pointer;
+            //        Ty_ty tyToPtr   = tyTo->u.pointer;
+
+            //        if ((tyFromPtr->kind == Ty_class) && (tyToPtr->kind == Ty_interface))
+            //        {
+            //            Ty_implements implements = tyFromPtr->u.cls.implements;
+            //            while (implements)
+            //            {
+            //                if (implements->intf == tyToPtr)
+            //                    break;
+            //                implements=implements->next;
+            //            }
+            //            if (!implements)
+            //                return FALSE;
+            //            CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
+            //            CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+            //            assert (item->kind == IK_varPtr);
+            //            item->kind = IK_inReg;
+            //            item->ty = tyTo;
+            //            return TRUE;
+            //        }
+            //    }
+
+            //    item->ty = tyTo;
+            //}
+            return true;
+
+        //case Ty_any:
+        //    switch (tyTo->kind)
+        //    {
+        //        case Ty_any:
+        //            item->ty = tyTo;
+        //            return TRUE;
+
+        //        case Ty_bool:
+        //        case Ty_byte:
+        //        case Ty_ubyte:
+        //        case Ty_uinteger:
+        //        case Ty_integer:
+        //        case Ty_long:
+        //        case Ty_ulong:
+        //        case Ty_single:
+        //        case Ty_pointer:
+        //        case Ty_procPtr:
+        //            CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+        //            return TRUE;
+        //        default:
+        //            return FALSE;
+        //    }
+        //    break;
+
+        default:
+            assert(false);
+    }
+
+    return false;
+}
+
+
 #if 0
 static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
 {
@@ -441,7 +657,7 @@ static bool _isDebugAssert (IR_method method)
 }
 
 static bool _transCallMethod(S_pos pos, IR_methodGroup mg, CG_itemList arglist,
-                             AS_instrList code, CG_frame frame, SEM_item *res)
+                             SEM_context context, SEM_item *res)
 {
     // find best match between method signatures in this group and actual arg list
 
@@ -496,34 +712,40 @@ static bool _transCallMethod(S_pos pos, IR_methodGroup mg, CG_itemList arglist,
         return EM_error (pos, "no matching method for actual params found");
 
     assert (!bestIsVarArgs); // FIXME: implement varargs support (i.e. transform arglist)
+    IR_formal f=bestMethod->proc->formals;
     for (CG_itemListNode arg = arglist->first; arg; arg=arg->next)
     {
-        CG_loadVal (code, pos, frame, &arg->item);
+        IR_type fTy = f->ty;
+        if (!_convertTy (&arg->item, pos, fTy, /*explicit=*/false, context))
+        {
+            assert(false);
+        }
+        CG_loadVal (context->code, pos, context->frame, &arg->item);
+        f = f->next;
     }
 
     // FIXME: Debug.Assert special
     if (_isDebugAssert (bestMethod))
     {
-        assert(false); // FIXME
-        //CG_itemList args2 = CG_ItemList();
-        //CG_itemListNode n = CG_itemListAppend(args2);
-        //CG_StringItem (context->code, expr->pos, &n->item, strprintf (UP_ir, "%s:%d:%d: debug assertion failed", PA_filename ? PA_filename : "???", expr->pos.line, expr->pos.col));
-        //n = CG_itemListAppend(args2);
-        //CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
+        CG_itemList args2 = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(args2);
+        CG_StringItem (context->code, pos, &n->item, strprintf (UP_ir, "%s:%d:%d: debug assertion failed", PA_filename ? PA_filename : "???", pos.line, pos.col));
+        n = CG_itemListAppend(args2);
+        CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-        //n = CG_itemListAppend(args);
-        //SEM_item semStr;
-        //_transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args2, context->code, context->frame, &semStr);
-        //n->item = semStr.u.cg;
+        n = CG_itemListAppend(arglist);
+        SEM_item semStr;
+        _transCallBuiltinMethod(pos, _getStringType(), S_Create, args2, context, &semStr);
+        n->item = semStr.u.cg;
     }
 
     res->kind = SIK_cg;
-    CG_transMethodCall(code, pos, frame, bestMethod, arglist, &res->u.cg);
+    CG_transMethodCall(context->code, pos, context->frame, bestMethod, arglist, &res->u.cg);
     return true;
 }
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
-                                    AS_instrList code, CG_frame frame, SEM_item *res)
+                                    SEM_context context, SEM_item *res)
 {
     assert (tyCls->kind == Ty_class);
 
@@ -531,45 +753,416 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
     if (!entry || (entry->kind != IR_recMethods))
         return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
 
-    return _transCallMethod (pos, entry->u.methods, arglist, code, frame, res);
+    return _transCallMethod (pos, entry->u.methods, arglist, context, res);
 }
 
-static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit)
+// given two types, try to come up with a type that covers both value ranges
+static bool _coercion (IR_type ty1, IR_type ty2, IR_type *res)
 {
-    IR_type tyFrom = CG_ty(item);
-
-    if (tyFrom == tyTo)
+    if (ty1==ty2)
     {
+        *res = ty1;
         return true;
     }
-    assert(false); // FIXME
+
+    switch (ty1->kind)
+    {
+        case Ty_boolean:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                    *res = ty1;
+                    return true;
+                case Ty_sbyte:
+                case Ty_int16:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                case Ty_byte:
+                    *res = IR_TypeInt16();
+                    return true;
+                case Ty_uint16:
+                case Ty_int32:
+                case Ty_uint32:
+                    *res = IR_TypeInt32();
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_sbyte:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                    *res = ty1;
+                    return true;
+                case Ty_byte:
+                    *res = IR_TypeInt16();
+                    return true;
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                case Ty_uint16:
+                case Ty_uint32:
+                    *res = IR_TypeInt32();
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_byte:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                    *res = IR_TypeInt16();
+                    return true;
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                case Ty_uint16:
+                case Ty_uint32:
+                    *res = IR_TypeInt32();
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_int16:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                    *res = ty1;
+                    return true;
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                case Ty_uint16:
+                    *res = IR_TypeInt32();
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_uint16:
+            switch (ty2->kind)
+            {
+                case Ty_byte:
+                case Ty_uint16:
+                    *res = ty1;
+                    return true;
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_int16:
+                case Ty_int32:
+                case Ty_uint32:
+                    *res = IR_TypeInt32();
+                    return true;
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_int32:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_int16:
+                case Ty_uint16:
+                    *res = ty1;
+                    return true;
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_uint32:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_int16:
+                case Ty_uint16:
+                case Ty_int32:
+                    *res = IR_TypeInt32();
+                    return true;
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_single:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_int16:
+                case Ty_uint16:
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                    *res = ty1;
+                    return true;
+                case Ty_double:
+                    *res = ty2;
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        case Ty_double:
+            switch (ty2->kind)
+            {
+                case Ty_boolean:
+                case Ty_sbyte:
+                case Ty_byte:
+                case Ty_int16:
+                case Ty_uint16:
+                case Ty_int32:
+                case Ty_uint32:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty1;
+                    return true;
+                //case Ty_sarray:
+                //case Ty_darray:
+                //case Ty_record:
+                //case Ty_class:
+                //case Ty_interface:
+                //case Ty_any:
+                //case Ty_pointer:
+                //case Ty_forwardPtr:
+                //case Ty_prc:
+                //case Ty_procPtr:
+                //case Ty_toLoad:
+                default:
+                    *res = ty1;
+                    return false;
+            }
+        //case Ty_sarray:
+        //case Ty_darray:
+        //    assert(0); // FIXME
+        //    *res = ty1;
+        //    return FALSE;
+        //case Ty_record:
+        //case Ty_class:
+        //case Ty_interface:
+        //    assert(0); // FIXME
+        //    *res = ty1;
+        //    return FALSE;
+        //case Ty_forwardPtr:
+        //case Ty_pointer:
+        //    return FALSE;
+        //    // FIXME switch (ty2->kind)
+        //    // FIXME {
+        //    // FIXME     case Ty_byte:
+        //    // FIXME     case Ty_ubyte:
+        //    // FIXME     case Ty_integer:
+        //    // FIXME     case Ty_uinteger:
+        //    // FIXME     case Ty_long:
+        //    // FIXME     case Ty_ulong:
+        //    // FIXME     case Ty_pointer:
+        //    // FIXME     case Ty_forwardPtr:
+        //    // FIXME         *res = ty1;
+        //    // FIXME         return TRUE;
+        //    // FIXME     default:
+        //    // FIXME         *res = ty1;
+        //    // FIXME         return FALSE;
+        //    // FIXME }
+        //    // FIXME break;
+        //case Ty_toLoad:
+        //case Ty_prc:
+        //    assert(0);
+        //    *res = ty1;
+        //    return FALSE;
+        //case Ty_any:
+        //    *res = ty2;
+        //    switch (ty2->kind)
+        //    {
+        //        case Ty_byte:
+        //        case Ty_ubyte:
+        //        case Ty_integer:
+        //        case Ty_uinteger:
+        //        case Ty_long:
+        //        case Ty_ulong:
+        //        case Ty_pointer:
+        //        case Ty_forwardPtr:
+        //        case Ty_procPtr:
+        //        case Ty_single:
+        //            return TRUE;
+        //        default:
+        //            return FALSE;
+        //    }
+        //    return FALSE;
+        //case Ty_procPtr:
+        //    switch (ty2->kind)
+        //    {
+        //        case Ty_bool:
+        //        case Ty_byte:
+        //        case Ty_ubyte:
+        //        case Ty_integer:
+        //        case Ty_uinteger:
+        //        case Ty_long:
+        //        case Ty_ulong:
+        //        case Ty_single:
+        //        case Ty_double:
+        //        case Ty_sarray:
+        //        case Ty_darray:
+        //        case Ty_record:
+        //        case Ty_class:
+        //        case Ty_interface:
+        //        case Ty_forwardPtr:
+        //        case Ty_any:
+        //        case Ty_toLoad:
+        //        case Ty_prc:
+        //            *res = ty1;
+        //            return FALSE;
+        //        case Ty_procPtr:
+        //            *res = ty1;
+        //            return TRUE;
+        //        case Ty_pointer:
+        //            *res = ty1;
+        //            return ty2->u.pointer->kind == Ty_any;
+        //    }
+        default:
+            assert(false); // FIXME
+    }
+    *res = ty1;
     return false;
 }
 
-static bool _coercion (IR_type tyA, IR_type tyB, IR_type *tyRes)
-{
-    if (tyA==tyB)
-    {
-        *tyRes = tyA;
-        return true;
-    }
-    assert(false); // FIXME
-    return false;
-}
-
-static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context context)
+static bool _varDeclaration (IR_variable v, SEM_context context)
 {
     if (!v->ty)
-        v->ty = _elaborateTypeDesignator (v->td, context, names);
+        v->ty = _elaborateTypeDesignator (v->td, context);
 
     IR_type ty = v->ty;
 
-    if (TAB_look (context->entries, v->id))
+    if (TAB_look (context->blockEntries, v->id))
         return EM_error(v->pos, "Symbol %s is already declared in this scope.", S_name(v->id));
 
     SEM_item *se = _SEM_Item (SIK_cg);
     CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, ty);
-    TAB_enter (context->entries, v->id, se);
+    TAB_enter (context->blockEntries, v->id, se);
 
     /*
      * run constructor / assign initial value
@@ -597,7 +1190,7 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
                     return EM_error(pos, "failed to elaborate init expression");
                 if (initExp.kind != SIK_cg)
                     return EM_error(pos, "init expression expected");
-                if (!_convertTy(&initExp.u.cg, pos, v->ty, /*explicit=*/false))
+                if (!_convertTy(&initExp.u.cg, pos, v->ty, /*explicit=*/false, context))
                     return EM_error(pos, "initializer type mismatch");
 
                 CG_transAssignment (context->code, pos, context->frame, &se->u.cg, &initExp.u.cg);
@@ -628,7 +1221,7 @@ static bool _varDeclaration (IR_variable v, IR_namespace names, SEM_context cont
             n = CG_itemListAppend(args);
             CG_IntItem (&n->item, ty->u.darray.dims[0], IR_TypeInt32()); // length
 
-            return _transCallBuiltinMethod(v->pos, _getSystemArrayType(), S_CreateInstance, args, context->code, context->frame, se);
+            return _transCallBuiltinMethod(v->pos, _getSystemArrayType(), S_CreateInstance, args, context, se);
         }
     }
 
@@ -650,7 +1243,7 @@ static void _elaborateNames (IR_namespace names, SEM_context context)
                 assert(false); // FIXME
                 break;
             case IR_neVar:
-                _varDeclaration (e->u.var, names, context);
+                _varDeclaration (e->u.var, context);
                 break;
         }
     }
@@ -685,7 +1278,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         n->item = item.u.cg;
     }
 
-    return _transCallMethod(pos, fun.u.member.m->u.methods, args, context->code, context->frame, res);
+    return _transCallMethod(pos, fun.u.member.m->u.methods, args, context, res);
 }
 
 static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
@@ -696,7 +1289,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _getStringType(), S_Create, args, context->code, context->frame, res);
+    return _transCallBuiltinMethod(expr->pos, _getStringType(), S_Create, args, context, res);
 }
 
 static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM_item *res)
@@ -705,7 +1298,7 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
 
     // is this a namespace ?
 
-    for (IR_namespace names = context->names; names; names=names->parent)
+    for (IR_namespace names = context->ctxnames; names; names=names->parent)
     {
         for (IR_using u=names->usingsFirst; u; u=u->next)
         {
@@ -806,7 +1399,7 @@ static bool _elaborateExprSym (IR_expression expr, SEM_context context, SEM_item
     }
 #endif
 
-    for (IR_namespace names = context->names; names; names=names->parent)
+    for (IR_namespace names = context->ctxnames; names; names=names->parent)
     {
         // is this a namespace or a type in an imported namespace?
         for (IR_using u=names->usingsFirst; u; u=u->next)
@@ -883,10 +1476,10 @@ static bool _elaborateExprBinary (IR_expression expr, SEM_context context, SEM_i
     if (!_coercion(tyA, tyB, &tyRes))
         return EM_error(pos, "operands type mismatch [1]");
 
-    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false))
+    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false, context))
         return EM_error(pos, "operand type mismatch (left)");
 
-    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false))
+    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false, context))
         return EM_error(pos, "operand type mismatch (right)");
 
     CG_binOp oper;
@@ -961,10 +1554,10 @@ static bool _elaborateExprComparison (IR_expression expr, SEM_context context, S
     if (!_coercion(tyA, tyB, &tyRes))
         return EM_error(pos, "operands type mismatch [1]");
 
-    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false))
+    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false, context))
         return EM_error(pos, "operand type mismatch (left)");
 
-    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false))
+    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false, context))
         return EM_error(pos, "operand type mismatch (right)");
 
     CG_relOp oper;
@@ -1258,15 +1851,24 @@ static bool _strappendNType (S_pos pos, char *buf, IR_type ty, size_t bufsize, s
         case Ty_single : return _strappendN (buf, "f", bufsize, offset, /*do_len=*/false);
         case Ty_double : return _strappendN (buf, "d", bufsize, offset, /*do_len=*/false);
 
+
+        case Ty_class:
+            return _strappendNName (pos, buf, ty->u.cls.name, /*id=*/NULL, bufsize, offset);
+
+        // FIXME: Ty_interface
+
         case Ty_reference:
             if (!_strappendN (buf, "R", bufsize, offset, /*do_len=*/false))
                 return false;
             if (!_strappendNType (pos, buf, ty->u.ref, bufsize, offset))
                 return false;
             break;
-
-        case Ty_class:
-            return _strappendNName (pos, buf, ty->u.cls.name, /*id=*/NULL, bufsize, offset);
+        case Ty_pointer:
+            if (!_strappendN (buf, "P", bufsize, offset, /*do_len=*/false))
+                return false;
+            if (!_strappendNType (pos, buf, ty->u.pointer, bufsize, offset))
+                return false;
+            break;
 
         case Ty_darray:
         {
@@ -1305,7 +1907,7 @@ static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, s
 {
     if (IR_procIsMain (proc))
     {
-        strncat (buf, _MAIN_LABEL, buf_len);
+        memcpy (buf, _MAIN_LABEL, strlen(_MAIN_LABEL)+1);
         return true;
     }
 
@@ -1316,7 +1918,7 @@ static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, s
     _strappendNName (proc->pos, buf, clsOwnerName, proc->id, buf_len, &offset);
 
     IR_formal f = proc->formals;
-    if (clsOwnerName)
+    if (!proc->isStatic && clsOwnerName)    // skip "this" argument
         f = f->next;
     if (f)
     {
@@ -1332,14 +1934,14 @@ static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, s
     return true;
 }
 
-static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespace parent)
+static void _elaborateProc (IR_proc proc, SEM_context parentContext)
 {
     if (!proc->returnTy)
-        proc->returnTy = _elaborateTypeDesignator (proc->returnTd, parentContext, parent);
+        proc->returnTy = _elaborateTypeDesignator (proc->returnTd, parentContext);
     for (IR_formal formal = proc->formals; formal; formal=formal->next)
     {
         if (!formal->ty)
-            formal->ty = _elaborateTypeDesignator (formal->td, parentContext, parent);
+            formal->ty = _elaborateTypeDesignator (formal->td, parentContext);
     }
 
     // internal __gc_scan has no proc->block -> no label so we can generate a NULL vtable entry later
@@ -1361,11 +1963,11 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
 
         AS_instrList code = AS_InstrList();
         SEM_context context = _SEM_Context (parentContext);
-        context->code     = code;
-        context->frame    = funFrame;
-        context->exitlbl  = Temp_newlabel();
-        context->contlbl  = NULL;
-        context->breaklbl = NULL;
+        context->code           = code;
+        context->frame          = funFrame;
+        context->exitlbl        = Temp_newlabel();
+        context->contlbl        = NULL;
+        context->breaklbl       = NULL;
 
         if (proc->returnTy)
         {
@@ -1393,10 +1995,11 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
         {
             SEM_item *se = _SEM_Item (SIK_cg);
             se->u.cg = iln->item;
-            TAB_enter (context->entries, formal->id, se);
+            TAB_enter (context->blockEntries, formal->id, se);
         }
 
-        context->names = proc->block->names;
+        //assert(false); // FIXME
+        //context->names = proc->block->names;
 
         _elaborateNames (proc->block->names, context);
 
@@ -1415,9 +2018,9 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext, IR_namespac
     }
 }
 
-static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context, IR_namespace parent)
+static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context)
 {
-    _elaborateProc (method->proc, context, parent);
+    _elaborateProc (method->proc, context);
     S_pos pos = method->proc->pos;
 
     // check existing entries: is this an override?
@@ -1512,10 +2115,10 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
     method->vTableIdx = vTableIdx;
 }
 
-static void _elaborateMethodGroup (IR_methodGroup mg, IR_type tyCls, SEM_context context, IR_namespace parent)
+static void _elaborateMethodGroup (IR_methodGroup mg, IR_type tyCls, SEM_context context)
 {
     for (IR_method method=mg->first; method; method=method->next)
-        _elaborateMethod (method, tyCls, context, parent);
+        _elaborateMethod (method, tyCls, context);
 }
 
 static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
@@ -1787,7 +2390,7 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
     formals->ty = IR_getReference(pos, tyCls);
 
     formals->next = IR_Formal(pos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
-    formals->next->ty = _getSystemGCType();
+    formals->next->ty = IR_getPointer(S_noPos, _getSystemGCType());
 
     IR_proc proc = IR_Proc (pos, IR_visPrivate, IR_pkFunction, tyCls, S___gc_scan,
                             /*isExtern=*/OPT_gcScanExtern, /*isStatic=*/false);
@@ -1898,10 +2501,14 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
 
+    SEM_context context = _SEM_Context (/*parent=*/ NULL);
+    context->ctxnames = parent;
+    context->ctxcls   = tyCls;
+
     //S_pos pos = tyCls->pos;
 
     if (tyCls->u.cls.baseTd)
-        tyCls->u.cls.baseTy = _elaborateTypeDesignator (tyCls->u.cls.baseTd, /*context=*/NULL, parent);
+        tyCls->u.cls.baseTy = _elaborateTypeDesignator (tyCls->u.cls.baseTd, context);
 
     IR_type tyBase = tyCls->u.cls.baseTy;
 
@@ -1920,8 +2527,6 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
     // FIXME: interface vTables!
 
-    IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
-
     // elaborate other members
 
     for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
@@ -1930,17 +2535,22 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         {
             case IR_recField:
                 if (!member->u.field.ty)
-                    member->u.field.ty = _elaborateTypeDesignator (member->u.field.td, /*context=*/NULL, names);
+                    member->u.field.ty = _elaborateTypeDesignator (member->u.field.td, context);
                 IR_fieldCalcOffset (tyCls, member);
                 break;
             case IR_recProperty:
                 if (!member->u.property.ty)
-                    member->u.property.ty = _elaborateTypeDesignator (member->u.property.td, /*context=*/NULL, names);
+                    member->u.property.ty = _elaborateTypeDesignator (member->u.property.td, context);
                 break;
             default:
                 break;
         }
-        IR_namesAddMember (names, member);
+
+        SEM_item *se = _SEM_Item (SIK_member);
+        se->u.member.thisReg = NULL;
+        se->u.member.thisTy  = tyCls;
+        se->u.member.m       = member;
+        TAB_enter (context->blockEntries, member->id, se);
     }
 
     /*
@@ -1968,7 +2578,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         {
             case IR_recMethods:
                 // FIXME: static type initializer context?
-                _elaborateMethodGroup (member->u.methods, tyCls, /*context=*/NULL, names);
+                _elaborateMethodGroup (member->u.methods, tyCls, context);
                 break;
             case IR_recField:
                 continue;
@@ -2099,7 +2709,7 @@ static IR_type _applyTdExt (IR_type t, IR_typeDesignatorExt ext, SEM_context con
     return t;
 }
 
-static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context, IR_namespace names)
+static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context)
 {
     if (!td->name)
     {
@@ -2113,7 +2723,7 @@ static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context conte
     // simple id?
     if (!name->first->next)
     {
-        t = _namesResolveType (name->pos, names, name->first->sym);
+        t = _namesResolveType (name->pos, context->ctxnames, name->first->sym);
         if (!t)
         {
             EM_error (name->pos, "failed to resolve type %s", IR_name2string (name, "."));

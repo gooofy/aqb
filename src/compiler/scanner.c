@@ -378,23 +378,44 @@ bool S_nextToken (void)
         if (!g_eof && (g_ch == '/'))
         {
             getch();
-            // FIXME: handle block comments
-            if (g_eof || (g_ch != '/'))
+            if (g_eof)
             {
                 S_tkn.kind = S_SLASH;
                 goto done;
             }
-            getch();
-            // line comment
-            while (!g_eof)
+            switch (g_ch)
             {
-                if (g_ch == '\n')
-                {
-                    break;
-                }
-                getch();
+                case '/':       // line comment
+                    getch();
+                    while (!g_eof)
+                    {
+                        if (g_ch == '\n')
+                        {
+                            break;
+                        }
+                        getch();
+                    }
+                    continue;
+                case '*':       // block comment
+                    getch();
+                    while (!g_eof)
+                    {
+                        if (g_ch == '*')
+                        {
+                            getch();
+                            if (g_ch == '/')
+                            {
+                                getch();
+                                break;
+                            }
+                        }
+                        getch();
+                    }
+                    continue;
+                default:
+                    S_tkn.kind = S_SLASH;
+                    goto done;
             }
-            continue;
         }
 
         //if (g_eof)

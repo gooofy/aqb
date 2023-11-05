@@ -62,9 +62,8 @@ namespace System
     {
         public extern static void WriteLine(string value);
         public extern static void Write(string value);
-        public extern static void WriteInt(int value);
+        public extern static void Write(int value);
     }
-
 
     public static class GC
     {

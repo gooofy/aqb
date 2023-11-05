@@ -471,7 +471,7 @@ static IR_formal _deserializeIRFormal (void)
     return formal;
 }
 
-static IR_proc _deserializeIRProc (void)
+static IR_proc _deserializeIRProc (IR_type tyOwner)
 {
     uint8_t kind = fread_u1();
     if (kind == 255)
@@ -494,10 +494,11 @@ static IR_proc _deserializeIRProc (void)
     proc->label = Temp_namedlabel (strdeserialize (UP_ir, symf));
     proc->isStatic = fread_u1();
     proc->isExtern = fread_u1();
+    proc->tyOwner  = tyOwner;
     return proc;
 }
 
-static IR_memberList _deserializeIRMemberList (void)
+static IR_memberList _deserializeIRMemberList (IR_type tyOwner)
 {
     IR_memberList ml = U_poolAllocZero (UP_ir, sizeof (*ml));
     uint16_t cnt = fread_u2();
@@ -516,7 +517,7 @@ static IR_memberList _deserializeIRMemberList (void)
                 int cnt = fread_u2();
                 for (int i=0; i<cnt; i++)
                 {
-                    IR_proc proc = _deserializeIRProc ();
+                    IR_proc proc = _deserializeIRProc (tyOwner);
                     IR_method method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
                     method->vTableIdx = fread_i2();
                     IR_methodGroupAdd (mg, method);
@@ -559,9 +560,9 @@ static void _deserializeIRType(IR_type ty)
             ty->u.cls.uiSize = fread_u4 ();
             ty->u.cls.baseTy = _deserializeIRTypeRef ();
             //assert (!ty->u.cls.implements); // FIXME
-            ty->u.cls.constructor = _deserializeIRProc ();
-            ty->u.cls.__init = _deserializeIRProc ();
-            ty->u.cls.members = _deserializeIRMemberList ();
+            ty->u.cls.constructor = _deserializeIRProc (ty);
+            ty->u.cls.__init = _deserializeIRProc (ty);
+            ty->u.cls.members = _deserializeIRMemberList (ty);
             ty->u.cls.virtualMethodCnt = fread_u2 ();
             // take care of vTablePtr
             if (!ty->u.cls.baseTy)
