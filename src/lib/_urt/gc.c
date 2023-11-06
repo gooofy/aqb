@@ -464,8 +464,8 @@ void _gc_shutdown (void)
     }
 }
 
-VOID _System_GC___gc_scan (System_GC *this, System_GC *gc)
+VOID _ZN6System2GC9__gc_scanEPN6System2GCE (System_GC *this, System_GC *gc)
 {
-    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_GC gc_scan");
+    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_GC.__gc_scan");
 }
 

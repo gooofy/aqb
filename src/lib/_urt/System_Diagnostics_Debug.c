@@ -7,7 +7,7 @@
 
 #include <inline/exec.h>
 
-VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCEE (System_Diagnostics_Debug *this, System_GC *gc)
+VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCE (System_Diagnostics_Debug *this, System_GC *gc)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Diagnostics_Debug gc_scan");
 }

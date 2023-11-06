@@ -145,6 +145,7 @@ struct IR_proc_
     IR_formal         formals;
     IR_typeDesignator returnTd;
     IR_type           returnTy;
+    S_symbol          signature;
     Temp_label        label;
     bool              isStatic;
     bool              isExtern;

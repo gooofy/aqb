@@ -1808,34 +1808,20 @@ static bool _strappendN (char *buf, const char *s, size_t bufsize, size_t *offse
     return true;
 }
 
-static bool _strappendNName (S_pos pos, char *buf, IR_name name, S_symbol id, size_t bufsize, size_t *offset)
+static bool _strappendNName (S_pos pos, char *buf, IR_name name, size_t bufsize, size_t *offset)
 {
-    if (name)
+    _strappendN (buf, "N", bufsize, offset, /*do_len=*/false);
+    for (IR_symNode sn=name->first; sn; sn=sn->next)
     {
-        _strappendN (buf, "N", bufsize, offset, /*do_len=*/false);
-        for (IR_symNode sn=name->first; sn; sn=sn->next)
-        {
-            if (!sn->sym)
-                continue;
+        if (!sn->sym)
+            continue;
 
-            if (!_strappendN (buf, S_name(sn->sym), bufsize, offset, /*do_len=*/true))
-            {
-                EM_error (pos, "internal error: proc label too long");
-                return false;
-            }
-        }
-    }
-
-    if (id)
-    {
-        if (!_strappendN (buf, S_name(id), bufsize, offset, /*do_len=*/true))
+        if (!_strappendN (buf, S_name(sn->sym), bufsize, offset, /*do_len=*/true))
         {
             EM_error (pos, "internal error: proc label too long");
             return false;
         }
     }
-
-    _strappendN (buf, "E", bufsize, offset, /*do_len=*/false);
 
     return true;
 }
@@ -1856,7 +1842,7 @@ static bool _strappendNType (S_pos pos, char *buf, IR_type ty, size_t bufsize, s
 
 
         case Ty_class:
-            return _strappendNName (pos, buf, ty->u.cls.name, /*id=*/NULL, bufsize, offset);
+            return _strappendNName (pos, buf, ty->u.cls.name, bufsize, offset);
 
         // FIXME: Ty_interface
 
@@ -1906,11 +1892,13 @@ static bool _strappendNType (S_pos pos, char *buf, IR_type ty, size_t bufsize, s
     return true;
 }
 
-static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, size_t buf_len)
+static bool _procGenerateSignatureAndLabel (IR_proc proc, IR_name clsOwnerName, char *buf, size_t buf_len)
 {
     if (IR_procIsMain (proc))
     {
         memcpy (buf, _MAIN_LABEL, strlen(_MAIN_LABEL)+1);
+        proc->label     = Temp_namedlabel(String(UP_ir, buf));
+        proc->signature = S_Symbol(String(UP_ir, buf));
         return true;
     }
 
@@ -1918,7 +1906,13 @@ static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, s
 
     _strappendN (buf, "__Z", buf_len, &offset, /*do_len=*/false);
 
-    _strappendNName (proc->pos, buf, clsOwnerName, proc->id, buf_len, &offset);
+    _strappendNName (proc->pos, buf, clsOwnerName, buf_len, &offset);
+
+    size_t sigOffset = offset;
+
+    if (!_strappendN (buf, S_name(proc->id), buf_len, &offset, /*do_len=*/true))
+        return false;
+    _strappendN (buf, "E", buf_len, &offset, /*do_len=*/false);
 
     IR_formal f = proc->formals;
     if (!proc->isStatic && clsOwnerName)    // skip "this" argument
@@ -1933,6 +1927,9 @@ static bool _procGenerateLabel (IR_proc proc, IR_name clsOwnerName, char *buf, s
         }
         _strappendN (buf, "E", buf_len, &offset, /*do_len=*/false);
     }
+
+    proc->label     = Temp_namedlabel(String(UP_ir, buf));
+    proc->signature = S_Symbol(String(UP_ir, &buf[sigOffset]));
 
     return true;
 }
@@ -1951,10 +1948,8 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext)
     if (proc->isExtern || proc->block)
     {
         char labelbuf[MAX_LABEL_LEN];
-        if (!_procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN))
+        if (!_procGenerateSignatureAndLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN))
             return;
-
-        proc->label = Temp_namedlabel(String (UP_ir, labelbuf));
     }
 
     if (!proc->isExtern && proc->block)
@@ -2046,7 +2041,10 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
             IR_method existingMethod=NULL;
             for (IR_method m=existingMember->u.methods->first; m; m=m->next)
             {
-                if (m->proc->label == method->proc->label)
+                // FIXME: use signature instead of label for this comparison
+                //        (class part of FQN will be different if we override a base
+                //        class method here!)
+                if (m->proc->signature == method->proc->signature)
                 {
                     existingMethod = m;
                     break;
@@ -2055,7 +2053,7 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
 
             if (existingMethod)
             {
-                if (method->isVirtual)
+                if (method->isVirtual && !method->isOverride)
                 {
                     EM_error (pos, "%s: a virtual method of this signature already exists in a base class, use override instead.",
                               S_name(method->proc->id));
@@ -2089,12 +2087,20 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
                     return;
                 }
             }
+            else
+            {
+                if (method->isOverride)
+                {
+                    EM_error (pos, "%s: no matching method to override found. [1]",
+                              S_name(method->proc->id));
+                }
+            }
         }
         else
         {
             if (method->isOverride)
             {
-                EM_error (pos, "%s: no matching method to override found.",
+                EM_error (pos, "%s: no matching method to override found. [2]",
                           S_name(method->proc->id));
             }
         }
@@ -2143,7 +2149,7 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
                 {
                     if (m->vTableIdx >= 0)
                     {
-                        CG_dataFragSetPtr (vTableFrag, m->proc->label, m->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                        CG_dataFragSetPtr (vTableFrag, m->proc->isExtern || m->proc->block ? m->proc->label : NULL, m->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
                     }
                 }
                 break;
@@ -2178,8 +2184,7 @@ static void _assembleVTables (IR_type tyCls)
                                    /*isExtern=*/false, /*isStatic=*/false);
     proc->formals = formals;
     char labelbuf[MAX_LABEL_LEN];
-    _procGenerateLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN);
-    proc->label = Temp_namedlabel(String(UP_ir, labelbuf));
+    _procGenerateSignatureAndLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN);
 
     tyCls->u.cls.__init = proc;
 
@@ -2399,9 +2404,8 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
                             /*isExtern=*/OPT_gcScanExtern, /*isStatic=*/false);
     proc->formals = formals;
     char labelbuf[MAX_LABEL_LEN];
-    _procGenerateLabel (proc, tyCls->u.cls.name, labelbuf, MAX_LABEL_LEN);
+    _procGenerateSignatureAndLabel (proc, tyCls->u.cls.name, labelbuf, MAX_LABEL_LEN);
 
-    proc->label = Temp_namedlabel(String(UP_ir, labelbuf));
     proc->returnTd = IR_TypeDesignator (/*name=*/NULL); // void
 
     // when an external __gc_scan function is not requested,
@@ -2492,7 +2496,8 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
 #endif
 
     IR_type tyBase = tyCls->u.cls.baseTy;
-    IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/(tyBase==NULL), /*isOverride=*/(tyBase != NULL));
+    //IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/(tyBase==NULL), /*isOverride=*/(tyBase != NULL));
+    IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/true, /*isOverride=*/(tyBase != NULL));
     IR_methodGroup mg = IR_MethodGroup();
     IR_methodGroupAdd (mg, gcscanmethod);
     IR_member gcscanmember = IR_MemberMethodGroup (IR_visPrivate, S___gc_scan, mg);

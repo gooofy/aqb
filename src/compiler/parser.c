@@ -1442,6 +1442,8 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     if (isVirtual && isOverride)
         EM_error (S_tkn.pos, "method: can't combine override with virtual");
 
+    isVirtual |= isOverride;
+
     if (mods)
     {
         _report_leftover_mods (mods);

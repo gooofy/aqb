@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     10
+#define SYM_VERSION     11
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -182,6 +182,7 @@ static void _serializeIRProc (IR_proc proc)
         _serializeIRFormal(f);
     }
     _serializeIRTypeRef(proc->returnTy);
+    strserialize (symf, S_name(proc->signature));
     strserialize (symf, S_name(proc->label));
     fwrite_u1(proc->isStatic ? 1 : 0);
     fwrite_u1(proc->isExtern ? 1 : 0);
@@ -212,6 +213,8 @@ static void _serializeIRMemberList (IR_memberList members)
                     _serializeIRProc (m->proc);
                     fwrite_u1(m->isVirtual ? 1:0);
                     fwrite_u1(m->isOverride ? 1:0);
+                    if (m->isOverride)
+                        assert (m->isVirtual);
                     fwrite_i2(m->vTableIdx);
                 }
                 break;
@@ -491,6 +494,7 @@ static IR_proc _deserializeIRProc (IR_type tyOwner)
             flast = proc->formals = f;
     }
     proc->returnTy = _deserializeIRTypeRef();
+    proc->signature = S_Symbol (strdeserialize (UP_ir, symf));
     proc->label = Temp_namedlabel (strdeserialize (UP_ir, symf));
     proc->isStatic = fread_u1();
     proc->isExtern = fread_u1();
@@ -518,7 +522,9 @@ static IR_memberList _deserializeIRMemberList (IR_type tyOwner)
                 for (int i=0; i<cnt; i++)
                 {
                     IR_proc proc = _deserializeIRProc (tyOwner);
-                    IR_method method = IR_Method (proc, /*isVirtual=*/fread_u1(), /*isOverride=*/fread_u1());
+                    uint8_t isVirtual = fread_u1();
+                    uint8_t isOverride = fread_u1();
+                    IR_method method = IR_Method (proc, isVirtual, isOverride);
                     method->vTableIdx = fread_i2();
                     IR_methodGroupAdd (mg, method);
                 }

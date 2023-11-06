@@ -170,11 +170,10 @@ struct System_Object_
 
 // extern ULONG *_td__urt_COBJECT;
 
-VOID           _ZN6System6Object9__gc_scanEPN6System2GCEE  (System_Object *this, System_GC *gc);
-VOID           _ZN6System6Object9__gc_scanEN6System2GCEE   (System_Object *this, System_GC *gc);
+VOID           _ZN6System6Object9__gc_scanEPN6System2GCE   (System_Object *this, System_GC *gc);
 VOID           _ZN6System6Object8FinalizeE                 (System_Object *this);
 System_String *_ZN6System6Object8ToStringE                 (System_Object *this);
-BOOL           _ZN6System6Object6EqualsERN6System6ObjectEE (System_Object *this, System_Object *obj);
+BOOL           _ZN6System6Object6EqualsERN6System6ObjectE  (System_Object *this, System_Object *obj);
 LONG           _ZN6System6Object11GetHashCodeE             (System_Object *this);
 
 BOOL           __instanceof              (System_Object *obj, ULONG **td);
@@ -244,7 +243,7 @@ struct System_Type_
 
 };
 
-VOID         _System_Type___gc_scan (System_Type *this, System_GC *gc);
+VOID _ZN6System4Type9__gc_scanEPN6System2GCE (System_Type *this, System_GC *gc);
 
 struct System_String_
 {
@@ -260,9 +259,9 @@ struct System_String_
 };
 
 VOID           _System_String___init (System_String *obj);
-VOID           _ZN6System6String9__gc_scanEPN6System2GCEE                    (System_String *this, System_GC *gc);
-System_String *_ZN6System6String6CreateEPhbE                                 (UBYTE    *initialBuffer, BOOL     owned);
-System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectEE (System_String *format, System_Array *args);
+VOID           _ZN6System6String9__gc_scanEPN6System2GCE                    (System_String *this, System_GC *gc);
+System_String *_ZN6System6String6CreateEPhbE                                (UBYTE    *initialBuffer, BOOL     owned);
+System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectE (System_String *format, System_Array *args);
 
 struct System_Array_
 {
@@ -277,9 +276,9 @@ struct System_Array_
     System_Type    *_elementType;
 };
 
-VOID _System_Array___gc_scan (System_Array *this, System_GC *gc);
-VOID _System_Array_Finalize (System_Array *this);
-System_Array *_System_Array_CreateInstance (System_Type *elementType, LONG length);
+VOID          _ZN6System5Array9__gc_scanEPN6System2GCE          (System_Array *this, System_GC *gc);
+System_Array *_ZN6System5Array14CreateInstanceERN6System4TypeiE (System_Type *elementType, LONG length);
+VOID          _ZN6System5Array8FinalizeE                        (System_Array *this);
 
 struct System_Console_
 {
@@ -290,9 +289,9 @@ struct System_Console_
     UBYTE          __gc_color;
 };
 
-VOID _ZN6System7Console9__gc_scanEPN6System2GCEE     (System_Console *this, System_GC *gc);
-VOID _ZN6System7Console9WriteLineERN6System6StringEE (System_String *value);
-VOID _ZN6System7Console5WriteERN6System6StringEE     (System_String *value);
+VOID _ZN6System7Console9__gc_scanEPN6System2GCE     (System_Console *this, System_GC *gc);
+VOID _ZN6System7Console9WriteLineERN6System6StringE (System_String *value);
+VOID _ZN6System7Console5WriteERN6System6StringE     (System_String *value);
 VOID _ZN6System7Console5WriteEiE                     (LONG     value);
 
 struct System_Diagnostics_Debug_
@@ -304,8 +303,8 @@ struct System_Diagnostics_Debug_
     UBYTE    __gc_color;
 };
 
-VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCEE (System_Diagnostics_Debug *this, System_GC *gc);
-VOID _ZN6System11Diagnostics5Debug6AssertEbE                (BOOL condition, System_String *compiler_msg);
+VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCE (System_Diagnostics_Debug *this, System_GC *gc);
+VOID _ZN6System11Diagnostics5Debug6AssertEbE               (BOOL condition, System_String *compiler_msg);
 
 void           GC_RUN                (void);
 void           GC_REGISTER           (System_Object *obj);

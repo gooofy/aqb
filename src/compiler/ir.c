@@ -582,6 +582,9 @@ IR_method IR_Method  (IR_proc proc, bool isVirtual, bool isOverride)
     m->isOverride = isOverride;
     m->vTableIdx  = -1;
 
+    if (isOverride)
+        assert (isVirtual);
+
     return m;
 }
 

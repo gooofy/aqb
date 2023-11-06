@@ -7,7 +7,7 @@
 
 #include <inline/exec.h>
 
-VOID _ZN6System6String9__gc_scanEPN6System2GCEE (System_String *this, System_GC *gc)
+VOID _ZN6System6String9__gc_scanEPN6System2GCE (System_String *this, System_GC *gc)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_String gc_scan");
 }
@@ -33,7 +33,7 @@ System_String *_ZN6System6String6CreateEPhbE (UBYTE *str, BOOL owned)
     return obj;
 }
 
-System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectEE (System_String *format, System_Array *args)
+System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectE (System_String *format, System_Array *args)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_String.Format");
     return NULL;

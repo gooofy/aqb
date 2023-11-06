@@ -8,17 +8,17 @@
 
 #include <inline/exec.h>
 
-VOID _System_Array___gc_scan (System_Array *this, System_GC *gc)
+VOID _ZN6System5Array9__gc_scanEPN6System2GCE (System_Array *this, System_GC *gc)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Array gc_scan");
 }
 
-VOID _System_Array_Finalize (System_Array *this)
+VOID _ZN6System5Array8FinalizeE (System_Array *this)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Array.Finalize");
 }
 
-System_Array *_System_Array_CreateInstance (System_Type *elementType, LONG length)
+System_Array *_ZN6System5Array14CreateInstanceERN6System4TypeiE (System_Type *elementType, LONG length)
 {
     DPRINTF ("System.Array.CreateInstance: et=0x%08x kind=%d, size=%d, length=%d\n",
              elementType, elementType->_kind, elementType->_size, length);
