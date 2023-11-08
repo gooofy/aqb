@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     11
+#define SYM_VERSION     12
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -226,6 +226,9 @@ static void _serializeIRMemberList (IR_memberList members)
             case IR_recProperty:
                 assert(false); // FIXME
                 break;
+            case IR_recConstructors:
+                assert(false); // FIXME
+                break;
         }
     }
 }
@@ -245,7 +248,6 @@ static void _serializeIRType (IR_type ty)
             fwrite_u4 (ty->u.cls.uiSize);
             _serializeIRTypeRef (ty->u.cls.baseTy);
             assert (!ty->u.cls.implements); // FIXME
-            _serializeIRProc (ty->u.cls.constructor);
             _serializeIRProc (ty->u.cls.__init);
             _serializeIRMemberList (ty->u.cls.members);
             fwrite_u2 (ty->u.cls.virtualMethodCnt);
@@ -537,6 +539,9 @@ static IR_memberList _deserializeIRMemberList (IR_type tyOwner)
             case IR_recProperty:
                 assert(false); // FIXME
                 break;
+            case IR_recConstructors:
+                assert(false); // FIXME
+                break;
         }
         if (!ml->first)
             ml->first = ml->last = member;
@@ -566,7 +571,7 @@ static void _deserializeIRType(IR_type ty)
             ty->u.cls.uiSize = fread_u4 ();
             ty->u.cls.baseTy = _deserializeIRTypeRef ();
             //assert (!ty->u.cls.implements); // FIXME
-            ty->u.cls.constructor = _deserializeIRProc (ty);
+            // FIXME ty->u.cls.constructor = _deserializeIRProc (ty);
             ty->u.cls.__init = _deserializeIRProc (ty);
             ty->u.cls.members = _deserializeIRMemberList (ty);
             ty->u.cls.virtualMethodCnt = fread_u2 ();

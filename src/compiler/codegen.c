@@ -337,12 +337,12 @@ void CG_ZeroItem (CG_item *item, IR_type ty)
         case Ty_byte:
         case Ty_int16:
         case Ty_int32:
-        case Ty_reference:
             CG_ConstItem (item, IR_ConstInt(ty, 0));
             break;
         case Ty_sbyte:
         case Ty_uint16:
         case Ty_uint32:
+        case Ty_reference:
             CG_ConstItem (item, IR_ConstUInt(ty, 0));
             break;
         case Ty_single:

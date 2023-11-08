@@ -126,7 +126,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         }
     }
 
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nparsing worked.\n");
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "        parsing worked.\n\n");
 
     /*
      * semantics
@@ -141,7 +141,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         CO_exit(EXIT_FAILURE);
     }
 
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nsemantics worked.\n");
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "        semantics worked.\n\n");
     U_memstat();
 
     /*
@@ -152,7 +152,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
     {
         if (IR_saveAssembly(assembly, OPT_sym_fn))
         {
-            LOG_printf (LOG_INFO, "created symbol file: %s\n", OPT_sym_fn);
+            LOG_printf (LOG_INFO, "        created symbol file: %s\n", OPT_sym_fn);
         }
         else
         {

@@ -205,10 +205,10 @@ struct IR_type_
                 IR_visibility     visibility;
                 bool              isStatic;
                 uint32_t          uiSize;
-                IR_typeDesignator baseTd;
+                //IR_typeDesignator baseTd;
                 IR_type           baseTy;
                 IR_implements     implements;
-                IR_proc           constructor;
+                //IR_member         constructors;
                 IR_proc           __init;
                 IR_memberList     members;
                 int16_t           virtualMethodCnt;
@@ -222,6 +222,13 @@ struct IR_type_
                 int               dims[MAX_ARRAY_DIMS];
                 IR_type           elementType;
                 IR_type           tyCArray;                                 } darray;
+        struct {IR_name           name;
+                IR_visibility     visibility;
+                //IR_typeDesignator baseTd;
+                //IR_type           baseTy;
+                IR_implements     implements;
+                IR_memberList     members;
+                int16_t           virtualMethodCnt;                         } intf;
     } u;
 };
 
@@ -263,12 +270,13 @@ struct IR_const_
 struct IR_member_
 {
     IR_member                                           next;
-    enum { IR_recMethods, IR_recField, IR_recProperty } kind;
+    enum { IR_recMethods, IR_recField, IR_recProperty, IR_recConstructors } kind;
     S_symbol                                            id;
     IR_visibility                                       visibility;
     union
     {
         IR_methodGroup                                  methods;
+        IR_methodGroup                                  constructors;
         struct {
             uint32_t          uiOffset;
             IR_typeDesignator td;
@@ -290,9 +298,11 @@ struct IR_memberList_
 
 struct IR_implements_
 {
-    IR_implements   next;
-    IR_type         intf;
-    IR_member       vTablePtr;
+    S_pos             pos;
+    IR_implements     next;
+    IR_typeDesignator intfTd;
+    IR_type           intfTy;
+    IR_member         vTablePtr;
 };
 
 struct IR_method_
@@ -316,7 +326,7 @@ struct IR_block_
     IR_statement    first, last;
 };
 
-typedef enum { IR_stmtExpression, IR_stmtBlock, IR_stmtForLoop } IR_stmtKind;
+typedef enum { IR_stmtExpression, IR_stmtBlock, IR_stmtForLoop, IR_stmtReturn } IR_stmtKind;
 
 struct IR_statement_
 {
@@ -329,29 +339,32 @@ struct IR_statement_
                  IR_expression cond;
                  IR_statement  body;
                  IR_block      incr; }   forLoop;
+        IR_expression                    ret;
     } u;
     IR_statement next;
 };
 
 typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst,
-               IR_expADD, IR_expSUB,
+               IR_expADD, IR_expSUB, IR_expMUL, IR_expDIV, IR_expMOD,
                IR_expEQU, IR_expNEQ, IR_expLT, IR_expLTEQ, IR_expGT, IR_expGTEQ,
                IR_expINCR, IR_expDECR,
-               IR_expASSIGN } IR_exprKind;
+               IR_expASSIGN,
+               IR_expCREATION } IR_exprKind;
 
 struct IR_expression_
 {
     IR_exprKind kind;
     S_pos pos;
     union {
-        string                                             stringLiteral;
-        struct { IR_expression fun; IR_argumentList al; }  call;
-        S_symbol                                           id;
-        struct { S_symbol id; IR_expression e; }           selector;
-        IR_const                                           c;
-        struct { IR_expression a; IR_expression b; }       binop;
-        IR_expression                                      unop;
-        struct { IR_expression target; IR_expression e;}   assign;
+        string                                                 stringLiteral;
+        struct { IR_expression fun; IR_argumentList al; }      call;
+        S_symbol                                               id;
+        struct { S_symbol id; IR_expression e; }               selector;
+        IR_const                                               c;
+        struct { IR_expression a; IR_expression b; }           binop;
+        IR_expression                                          unop;
+        struct { IR_expression target; IR_expression e;}       assign;
+        struct { IR_typeDesignator td; IR_argumentList al; }   creation;
     } u;
 };
 
@@ -432,6 +445,8 @@ IR_member          IR_MemberField        (IR_visibility visibility, S_symbol id,
 void               IR_fieldCalcOffset    (IR_type ty, IR_member field);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
 IR_member          IR_findMember         (IR_type ty, S_symbol id, bool checkBase);
+
+IR_implements      IR_Implements         (S_pos pos, IR_typeDesignator td);
 
 IR_block           IR_Block              (S_pos pos, IR_namespace parent);
 void               IR_blockAppendStmt    (IR_block block, IR_statement stmt);

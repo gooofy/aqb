@@ -419,7 +419,7 @@ IR_const IR_ConstUInt (IR_type ty, uint32_t u)
 {
     IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
-    assert (ty->kind==Ty_byte || ty->kind==Ty_uint16 || ty->kind==Ty_uint32);
+    assert (ty->kind==Ty_byte || ty->kind==Ty_uint16 || ty->kind==Ty_uint32 || ty->kind==Ty_reference);
 
     p->ty  = ty;
     p->u.u = u;
@@ -720,6 +720,16 @@ IR_member IR_findMember (IR_type ty, S_symbol id, bool checkBase)
     }
 
     return NULL;
+}
+
+IR_implements IR_Implements (S_pos pos, IR_typeDesignator td)
+{
+    IR_implements impl = U_poolAllocZero (UP_ir, sizeof (*impl));
+
+    impl->pos     = pos;
+    impl->intfTd  = td;
+
+    return impl;
 }
 
 IR_block IR_Block (S_pos pos, IR_namespace parent)

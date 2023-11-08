@@ -17,7 +17,7 @@ struct SEM_context_
     SEM_context   parent;
 
     IR_namespace  ctxnames;
-    IR_type       ctxcls;
+    //IR_type       ctxcls;
     AS_instrList  code;
     CG_frame      frame;
     Temp_label    exitlbl;
@@ -59,15 +59,18 @@ static S_symbol S_Assert;
 static S_symbol S_Debug;
 static S_symbol S_Diagnostics;
 static S_symbol S___gc_scan;
+static S_symbol S_Object;
 
 //static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
-// System.String / System.GC / System.Array / System.Type type caching
+// System.String / System.GC / System.Array / System.Type / System.Object type caching
 static IR_type _g_tyString      = NULL;
 static IR_type _g_tySystemGC    = NULL;
 static IR_type _g_tySystemArray = NULL;
 static IR_type _g_tySystemType  = NULL;
+static IR_type _g_tyObject      = NULL;
+
 
 static IR_type _getStringType(void)
 {
@@ -109,6 +112,16 @@ static IR_type _getSystemArrayType(void)
     return _g_tySystemArray;
 }
 
+static IR_type _getObjectType(void)
+{
+    if (!_g_tyObject)
+    {
+        _g_tyObject = IR_namesLookupType (_g_sys_names, S_Object);
+        assert (_g_tyObject);
+    }
+    return _g_tyObject;
+}
+
 static SEM_context _SEM_Context (SEM_context parent)
 {
     SEM_context context = U_poolAllocZero (UP_ir, sizeof (*context));
@@ -118,7 +131,7 @@ static SEM_context _SEM_Context (SEM_context parent)
     if (parent)
     {
         context->ctxnames  = parent->ctxnames;
-        context->ctxcls    = parent->ctxcls;
+        //context->ctxcls    = parent->ctxcls;
         context->code      = parent->code;
         context->frame     = parent->frame;
         context->exitlbl   = parent->exitlbl;
@@ -180,8 +193,9 @@ static bool _checkImplements (IR_type ty, IR_type tyIntf)
         case Ty_class:
             for (IR_implements implements=ty->u.cls.implements; implements; implements=implements->next)
             {
-                if (_checkImplements (implements->intf, tyIntf))
-                    return true;
+                assert(false); // FIXME
+                //if (_checkImplements (implements->intf, tyIntf))
+                //    return true;
             }
             break;
         default:
@@ -2511,17 +2525,33 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
     SEM_context context = _SEM_Context (/*parent=*/ NULL);
     context->ctxnames = parent;
-    context->ctxcls   = tyCls;
 
-    //S_pos pos = tyCls->pos;
+    IR_type tyBase = NULL;
 
-    if (tyCls->u.cls.baseTd)
-        tyCls->u.cls.baseTy = _elaborateTypeDesignator (tyCls->u.cls.baseTd, context);
+    for (IR_implements impl = tyCls->u.cls.implements; impl; impl=impl->next)
+    {
+        impl->intfTy = _elaborateTypeDesignator (impl->intfTd, context);
+        if (impl->intfTy && impl->intfTy->kind == Ty_class)
+        {
+            if (!tyBase)
+                tyBase = impl->intfTy;
+            else
+                EM_error (impl->pos, "multiple inheritance is not supported.");
+        }
+    }
 
-    IR_type tyBase = tyCls->u.cls.baseTy;
+    if (!tyBase)
+    {
+        // every class except System.Object itself inherits from Object implicitly
 
-    assert (!tyCls->u.cls.implements);  // FIXME: implement
-    assert (!tyCls->u.cls.constructor); // FIXME: implement
+        IR_name fqn = tyCls->u.cls.name;
+        if (   (fqn->first->sym  != S_System)
+            || (fqn->last->sym   != S_Object)
+            || (fqn->first->next != fqn->last))
+            tyBase = _getObjectType();
+    }
+
+    tyCls->u.cls.baseTy = tyBase;
 
     /*
      * elaborate fields
@@ -2592,10 +2622,48 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
                 continue;
             case IR_recProperty:
                 assert(false); break; // FIXME
+            case IR_recConstructors:
+                assert(false); break; // FIXME
         }
     }
 
     IR_registerType (tyCls); // ensure System.Type typedescriptor gets generated if this is the main module
+}
+
+static void _elaborateInterface (IR_type tyIntf, IR_namespace parent)
+{
+    assert (tyIntf->kind == Ty_interface);
+
+    SEM_context context = _SEM_Context (/*parent=*/ NULL);
+    context->ctxnames = parent;
+    //context->ctxcls   = tyIntf;
+
+    S_pos pos = tyIntf->pos;
+
+    assert (!tyIntf->u.cls.implements);   // FIXME: implement
+
+    // FIXME: interface vTables!
+
+    /*
+     * elaborate methods
+     */
+
+    IR_memberList ml = tyIntf->u.intf.members;
+    for (IR_member member = ml->first; member; member=member->next)
+    {
+        switch (member->kind)
+        {
+            case IR_recMethods:
+                _elaborateMethodGroup (member->u.methods, tyIntf, context);
+                break;
+            case IR_recProperty:
+                assert(false); break; // FIXME
+            default:
+                EM_error (pos, "interfaces can have methods and properties only");
+        }
+    }
+
+    //IR_registerType (tyIntf); // ensure System.Type typedescriptor gets generated if this is the main module
 }
 
 static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
@@ -2918,8 +2986,9 @@ static void _genSystemType (IR_type ty)
             // interfaces
             for (IR_implements i=ty->u.cls.implements; i; i=i->next)
             {
-                Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
-                CG_dataFragAddPtr (frag, intfLabel);
+                assert(false); // FIXME
+                //Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
+                //CG_dataFragAddPtr (frag, intfLabel);
             }
             CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
 
@@ -3001,6 +3070,9 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
                         case Ty_class:
                             _elaborateClass (def->u.ty, def->names);
                             break;
+                        case Ty_interface:
+                            _elaborateInterface (def->u.ty, def->names);
+                            break;
                         default:
                             assert(false);
                     }
@@ -3076,5 +3148,6 @@ void SEM_boot(void)
     S_Array          = S_Symbol("Array");
     S_Type           = S_Symbol("Type");
     S___gc_scan      = S_Symbol("__gc_scan");
+    S_Object         = S_Symbol("Object");
 }
 

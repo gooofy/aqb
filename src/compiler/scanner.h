@@ -99,6 +99,7 @@ typedef enum {
     S_AWAIT,
     S_IS,
     S_AS,
+    S_RETURN,
 } S_token;
 
 typedef struct { uint16_t col; uint16_t line; } S_pos;

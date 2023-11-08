@@ -127,6 +127,7 @@ static void _print_token(void)
         case S_AWAIT         : LOG_printf(LOG_DEBUG, "await"); break;
         case S_IS            : LOG_printf(LOG_DEBUG, "is"); break;
         case S_AS            : LOG_printf(LOG_DEBUG, "as"); break;
+        case S_RETURN        : LOG_printf(LOG_DEBUG, "return"); break;
     }
 }
 #else
@@ -758,5 +759,6 @@ void S_boot(void)
     TAB_enter (g_syms, S_Symbol("await"        ), (void *) (intptr_t) S_AWAIT    );
     TAB_enter (g_syms, S_Symbol("as"           ), (void *) (intptr_t) S_AS);
     TAB_enter (g_syms, S_Symbol("is"           ), (void *) (intptr_t) S_IS);
+    TAB_enter (g_syms, S_Symbol("return"       ), (void *) (intptr_t) S_RETURN);
 }
 

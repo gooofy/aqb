@@ -32,25 +32,13 @@ static S_symbol S_System;
 static S_symbol S_Object;
 static S_symbol S__vTablePtr;
 static S_symbol S_this;
+static S_symbol S___CONSTRUCTOR;
 
 static IR_block       _block                        (IR_namespace parent);
 static bool           _namespace_member_declaration (IR_namespace names);
 static IR_name        _name                         (void);
 static IR_expression  _expression                   (void);
 static IR_statement   _statement                    (IR_namespace names);
-
-// System.Object type caching
-static IR_type _g_tyObject=NULL;
-
-static IR_type _getObjectType(void)
-{
-    if (!_g_tyObject)
-    {
-        _g_tyObject = IR_namesLookupType (_g_sys_names, S_Object);
-        assert (_g_tyObject);
-    }
-    return _g_tyObject;
-}
 
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
@@ -486,99 +474,34 @@ static IR_expression _invocation_expression (IR_expression eFunc)
 }
 
 /*
- * object_creation_expression : 'new' type ( '(' argument_list? ')' )? object_or_collection_initializer?
+ * creation expression ::= 'new' type [ argument_list ] [ initializer_expression ]
  *
- * assignment : unary_expression assignment_operator expression
+ * initializer_expression ::= '{' [ expression { ',' expression } [','] ] '}'
  *
- * array_creation_expression
- *     : 'new' non_array_type '[' expression_list ']' rank_specifier* array_initializer?
- *     | 'new' array_type array_initializer
- *     | 'new' rank_specifier array_initializer
- *     ;
- *
- * object_creation_expression
- *     : 'new' type '(' argument_list? ')' object_or_collection_initializer?
- *     | 'new' type object_or_collection_initializer
- *     ;
- *
- * object_or_collection_initializer
- *     : object_initializer
- *     | collection_initializer
- *     ;
- *
- * object_initializer
- *     : '{' member_initializer_list? '}'
- *     | '{' member_initializer_list ',' '}'
- *     ;
- *
- * collection_initializer
- *     : '{' element_initializer_list '}'
- *     | '{' element_initializer_list ',' '}'
- *     ;
- *
- * array_initializer
- *     : '{' variable_initializer_list? '}'
- *     | '{' variable_initializer_list ',' '}'
- *     ;
- *
- * primary_expression
- *     : primary_no_array_creation_expression
- *     | array_creation_expression
- *     ;
- *
- * primary_no_array_creation_expression
- *     : literal
- *     | interpolated_string_expression
- *     | simple_name
- *     | parenthesized_expression
- *     | tuple_expression
- *     | member_access
- *     | null_conditional_member_access
- *     | invocation_expression
- *     | element_access
- *     | null_conditional_element_access
- *     | this_access
- *     | base_access
- *     | post_increment_expression
- *     | post_decrement_expression
- *     | object_creation_expression
- *     | delegate_creation_expression
- *     | anonymous_object_creation_expression
- *     | typeof_expression
- *     | sizeof_expression
- *     | checked_expression
- *     | unchecked_expression
- *     | default_value_expression
- *     | nameof_expression
- *     | anonymous_method_expression
- *     | pointer_member_access     // unsafe code support
- *     | pointer_element_access    // unsafe code support
- *     | stackalloc_expression
- *     ;
-
-simple_name
-    : identifier type_argument_list?
-    ;
-
-member_access
-    : primary_expression '.' identifier type_argument_list?
-    | predefined_type '.' identifier type_argument_list?
-    | qualified_alias_member '.' identifier type_argument_list?
-    ;
-
-invocation_expression
-    : primary_expression '(' argument_list? ')'
-    ;
-
-element_access
-    : primary_no_array_creation_expression '[' argument_list ']'
-    ;
-
  */
 
-/*
- * creation expression : 'new' ... TODO
- */
+static IR_expression _creation_expression (void)
+{
+    S_pos pos = S_tkn.pos;
+    S_nextToken(); // skip 'new'
+
+    IR_expression e = IR_Expression (IR_expCREATION, pos);
+
+    e->u.creation.td = _type ();
+
+    if (S_tkn.kind == S_LPAREN)
+    {
+        e->u.creation.al = _argument_list();
+    }
+
+    if (S_tkn.kind == S_LBRACE)
+    {
+        EM_error (pos, "sorry, initializer expressions are not supported yet.");
+        return NULL;
+    }
+
+    return e;
+}
 
 /*
  * primary_expression :
@@ -592,6 +515,7 @@ element_access
  *                      | '(' [ argument_list ] ')'
  *                      | '++'
  *                      | '--' }
+ * 
  */
 
 static IR_expression _primary_expression (void)
@@ -657,6 +581,10 @@ static IR_expression _primary_expression (void)
                 S_nextToken();
                 break;
             }
+            case S_NEW:
+                expr = _creation_expression();
+                break;
+
             default:
                 EM_error (S_tkn.pos, "sorry #23");
                 assert(false); // FIXME
@@ -784,10 +712,32 @@ static IR_expression _multiplicative_expression (void)
 
     while ( (S_tkn.kind == S_ASTERISK) || (S_tkn.kind == S_SLASH) || (S_tkn.kind == S_MOD) )
     {
+        S_pos pos = S_tkn.pos;
+        IR_exprKind op;
+
+        switch (S_tkn.kind)
+        {
+            case S_ASTERISK:
+                op = IR_expMUL;
+                break;
+            case S_SLASH:
+                op = IR_expDIV;
+                break;
+            case S_MOD:
+                op = IR_expMOD;
+                break;
+            default:
+                assert(false);
+        }
         S_nextToken();
-        // IR_expression e = _unary_expression(NULL);
-        EM_error (S_tkn.pos, "sorry #28");
-        assert(false); // FIXME
+
+        IR_expression e2 = _unary_expression();
+
+        IR_expression res = IR_Expression (op, pos);
+        res->u.binop.a = e;
+        res->u.binop.b = e2;
+
+        e = res;
     }
 
     return e;
@@ -1303,6 +1253,28 @@ static IR_statement _for_statement (IR_namespace names)
 }
 
 /*
+ * return_statement ::= 'return' [ expression ] ';'
+ */
+static IR_statement _return_statement (IR_namespace names)
+{
+    IR_statement stmt = IR_Statement (IR_stmtReturn, S_tkn.pos);
+
+    S_nextToken(); // skip 'return'
+
+    if (S_tkn.kind != S_SEMICOLON)
+    {
+        stmt->u.ret = _expression();
+    }
+
+    if (S_tkn.kind == S_SEMICOLON)
+        S_nextToken();
+    else
+        EM_error (S_tkn.pos, "; expected here.");
+
+    return stmt;
+}
+
+/*
  * statement: ( block
               | ';'
               | local_constant_declaration ';'
@@ -1313,6 +1285,7 @@ static IR_statement _for_statement (IR_namespace names)
               | do_statement
               | for_statement
               | foreach_statement
+              | return_statement
 
               | local_variable_declaration ';'
               | expression ';'
@@ -1353,6 +1326,8 @@ static IR_statement _statement (IR_namespace names)
         case S_FOREACH:
             assert(false); // FIXME: implement
             break;
+        case S_RETURN:
+            return _return_statement(names);
         case S_IDENT:
         {
             IR_statement stmt = _variable_declaration_or_expression (names);
@@ -1393,6 +1368,13 @@ static IR_block _block (IR_namespace parent)
     return block;
 }
 
+//static IR_method _constructor_declaration (S_pos pos, uint32_t mods, IR_type tyOwner, IR_namespace parent)
+//{
+//    EM_error (pos, "sorry, constructors are not supported yet");
+//    assert(false); // FIXME
+//    return NULL;
+//}
+
 /*
  * method_declaration
  *   : type identifier type_parameter_list? parameter_list
@@ -1413,13 +1395,14 @@ static IR_block _block (IR_namespace parent)
  *   ;
  */
 
-static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner, IR_namespace parent)
+static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner, IR_namespace parent)
 {
-    IR_visibility visibility = IR_visPrivate;
-    bool          isStatic   = false;
-    bool          isExtern   = false;
-    bool          isVirtual  = false;
-    bool          isOverride = false;
+    IR_visibility visibility    = IR_visPrivate;
+    bool          isStatic      = false;
+    bool          isExtern      = false;
+    bool          isVirtual     = false;
+    bool          isOverride    = false;
+    IR_member     member        = NULL;
 
     if (_check_modifier(&mods, MODF_PUBLIC))
         visibility = IR_visPublic;
@@ -1447,45 +1430,55 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     if (mods)
     {
         _report_leftover_mods (mods);
-        return;
+        return NULL;
     }
 
     IR_typeDesignator td = _type();
 
+    S_symbol id;
     if (S_tkn.kind != S_IDENT)
     {
-        EM_error (S_tkn.pos, "method identifier expected here");
-        return;
+        if (S_tkn.kind == S_LPAREN)
+        {
+            id = S___CONSTRUCTOR;
+        }
+        else
+        {
+            EM_error (S_tkn.pos, "method identifier expected here");
+            return NULL;
+        }
     }
-
-    S_symbol id = S_tkn.u.sym;
-    S_nextToken();
+    else
+    {
+        id = S_tkn.u.sym;
+        S_nextToken();
+    }
 
     if (S_tkn.kind == S_LESS)
     {
         // FIXME: implement generics
         EM_error (S_tkn.pos, "sorry, generics are not supported yet");
-        return;
+        return NULL;
     }
 
     if (S_tkn.kind == S_LPAREN)
     {
         S_nextToken();
 
-        IR_member member = IR_findMember (tyOwner, id, /*checkbase=*/false);
+        member = IR_findMember (tyOwner, id, /*checkbase=*/false);
         IR_methodGroup mg = NULL;
         if (member)
         {
             if (member->kind != IR_recMethods)
             {
                 EM_error (pos, "%s already declared as something other than a method.", S_name (id));
-                return;
+                return NULL;
             }
             mg = member->u.methods;
             if (member->visibility != visibility)
             {
                 EM_error (pos, "%s visibility mismatch", S_name (id));
-                return;
+                return NULL;
             }
         }
         else
@@ -1520,7 +1513,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         {
             IR_formal f = _parameter(proc->block->names);
             if (!f)
-                return;
+                return NULL;
             if (formals_last)
                 formals_last = formals_last->next = f;
             else
@@ -1532,7 +1525,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
                 if (S_tkn.kind != S_COMMA)
                 {
                     EM_error (S_tkn.pos, "method declaration: , expected here");
-                    return;
+                    return NULL;
                 }
                 S_nextToken();
             }
@@ -1574,22 +1567,22 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
             if (S_tkn.kind == S_LBRACKET)
             {
                 EM_error (S_tkn.pos, "sorry, arrays are not supported yet"); // FIXME
-                return;
+                return NULL;
             }
 
             if (S_tkn.kind == S_EQUALS)
             {
                 EM_error (S_tkn.pos, "sorry, field initializers are not supported yet"); // FIXME
-                return;
+                return NULL;
             }
 
             if (S_tkn.kind == S_EQUALS)
             {
                 EM_error (S_tkn.pos, "sorry, multiple field declarations are not supported yet"); // FIXME
-                return;
+                return NULL;
             }
 
-            IR_member member = IR_MemberField (visibility, id, td);
+            member = IR_MemberField (visibility, id, td);
             IR_addMember (ml, member);
 
             if (S_tkn.kind != S_COMMA)
@@ -1600,7 +1593,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
             if (S_tkn.kind != S_IDENT)
             {
                 EM_error (S_tkn.pos, "field identifier expected here");
-                return;
+                return NULL;
             }
 
             id = S_tkn.u.sym;
@@ -1610,36 +1603,39 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         if (S_tkn.kind != S_SEMICOLON)
         {
             EM_error (S_tkn.pos, "field declaration: semicolon expected here");
-            return;
+            return NULL;
         }
         S_nextToken();
-
     }
+
+    return member;
 }
 
 /*
-class_declaration
-    : 'class' identifier
-        type_parameter_list? class_base? type_parameter_constraints_clause*
-        class_body ';'?
-    ;
-class_body
-    : '{' class_member_declaration* '}'
-    ;
-class_member_declaration
-    : attributes? modifier* (constant_declaration
-                            | field_declaration
-                            | method_declaration
-                            | property_declaration
-                            | event_declaration
-                            | indexer_declaration
-                            | operator_declaration
-                            | constructor_declaration
-                            | finalizer_declaration
-                            | static_constructor_declaration
-                            | type_declaration
-                            )
-    ;
+ * class_declaration ::= 'class' identifier
+ *                               [ type_parameter_list ]
+ *                               [ base_list ]
+ *                               { type_parameter_constraints_clause }
+ *                               [ '{' { class_member_declaration } '}' ] [ ';' ]
+ *
+ * base_list ::=  ':' base_type { ',' base_type }
+ *
+ * base_type ::= type [ argument_list ]
+ *
+ * class_member_declaration
+ *     : attributes? modifier* (constant_declaration
+ *                             | field_declaration
+ *                             | method_declaration
+ *                             | property_declaration
+ *                             | event_declaration
+ *                             | indexer_declaration
+ *                             | operator_declaration
+ *                             | constructor_declaration
+ *                             | finalizer_declaration
+ *                             | static_constructor_declaration
+ *                             | type_declaration
+ *                             )
+ *     ;
 */
 
 static void _class_declaration (uint32_t mods, IR_namespace parent)
@@ -1695,20 +1691,41 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
 
     // either one or the other!
     IR_type           tyBase = NULL;
-    IR_typeDesignator tdBase = NULL;
+    //IR_typeDesignator tdBase = NULL;
+    IR_implements     implFirst=NULL, implLast=NULL;
     if (S_tkn.kind == S_COLON)
     {
-        EM_error (S_tkn.pos, "sorry, base classes and interfaces are not supported yet"); // FIXME
-        return;
-    }
-    else
-    {
-        // every class except System.Object itself inherits from Object implicitly
+        S_nextToken();
 
-        if (   (fqn->first->sym  != S_System)
-            || (fqn->last->sym   != S_Object)
-            || (fqn->first->next != fqn->last))
-            tyBase = _getObjectType();
+        S_pos pos = S_tkn.pos;
+
+        IR_typeDesignator td = _type();
+        if (S_tkn.kind == S_LPAREN)
+        {
+            EM_error (S_tkn.pos, "sorry, primary constructor base types are not supported yet"); // FIXME
+            return;
+        }
+        IR_implements impl = IR_Implements (pos, td);
+        if (implLast)
+            implLast = implLast->next = impl;
+        else
+            implFirst = implLast = impl;
+
+        while (S_tkn.kind == S_COMMA)
+        {
+            S_nextToken();
+
+            pos = S_tkn.pos;
+            td = _type();
+            if (S_tkn.kind == S_LPAREN)
+            {
+                EM_error (S_tkn.pos, "sorry, primary constructor base types are not supported yet"); // FIXME
+                return;
+            }
+
+            IR_implements impl = IR_Implements (pos, td);
+            implLast = implLast->next = impl;
+        }
     }
 
     if (S_tkn.kind == S_WHERE)
@@ -1723,10 +1740,8 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
     ty->u.cls.visibility       = visibility;
     ty->u.cls.isStatic         = isStatic;
     ty->u.cls.uiSize           = 0;
-    ty->u.cls.baseTd           = tdBase;
     ty->u.cls.baseTy           = tyBase;
-    ty->u.cls.implements       = NULL;
-    ty->u.cls.constructor      = NULL;
+    ty->u.cls.implements       = implFirst;
     ty->u.cls.__init           = NULL;
     ty->u.cls.members          = IR_MemberList();
     ty->u.cls.virtualMethodCnt = 0;
@@ -1748,37 +1763,171 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
 
     IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
 
-    if (S_tkn.kind != S_LBRACE)
+    if (S_tkn.kind == S_LBRACE)
     {
-        EM_error (S_tkn.pos, "{ expected here (class body)");
+        S_nextToken();
+
+        while (S_tkn.kind != S_RBRACE)
+        {
+            S_pos pos = S_tkn.pos;
+
+            if (S_tkn.kind == S_LBRACKET)
+                _attributes();
+
+            uint32_t mods=0;
+            while (_modifier (&mods));
+
+            if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
+            {
+            //    if ( (S_tkn.kind == S_IDENT) && (S_tkn.u.sym == id) )
+            //    {
+            //        IR_method c = _constructor_declaration (pos, mods, ty, names);
+
+            //        if (!ty->u.cls.constructors)
+            //            ty->u.cls.constructors = IR_MethodGroup();
+
+            //        if (ty->u.cls.constructors->last)
+            //            ty->u.cls.constructors->last = ty->u.cls.constructors->last->next = c;
+            //        else
+            //            ty->u.cls.constructors->first = ty->u.cls.constructors->last = c;
+            //    }
+            //    else
+            //    {
+                    _method_or_field_or_constructor_declaration (ty->u.cls.members, pos, mods, ty, names);
+            //    }
+            }
+            else
+            {
+                EM_error (S_tkn.pos, "sorry, only field or method members are supported yet");
+                assert(false); // FIXME
+            }
+        }
+
+        S_nextToken(); // skip }
+    }
+
+    if (S_tkn.kind == S_SEMICOLON)
+        S_nextToken();
+}
+
+/* interface_declaration ::= 'interface' identifier
+                                         [ variant_type_parameter_list ]
+                                         [ interface_base ]
+                                         { type_parameter_constraints_clause }
+                                         [ '{' { interface_member_declaration } '}' ]
+                                         [ ';' ]
+
+   class_member_declaration ::= [ attributes ] { modifier } ( method_declaration
+                                                            | property_declaration
+                                                            | event_declaration
+                                                            | indexer_declaration
+                                                            )
+*/
+
+static void _interface_declaration (uint32_t mods, IR_namespace parent)
+{
+    IR_visibility visibility = IR_visInternal;
+
+    if (_check_modifier(&mods, MODF_PUBLIC))
+        visibility = IR_visPublic;
+    if (_check_modifier(&mods, MODF_PROTECTED))
+        visibility = IR_visProtected;
+    if (_check_modifier(&mods, MODF_PRIVATE))
+        visibility = IR_visPrivate;
+    if (_check_modifier(&mods, MODF_INTERNAL))
+        visibility = IR_visInternal;
+
+    if (mods)
+        _report_leftover_mods (mods);
+
+    S_nextToken(); // skip "interface"
+
+    S_pos pos = S_tkn.pos;
+
+    if (S_tkn.kind != S_IDENT)
+    {
+        EM_error (pos, "interface identifier expected here");
         return;
+    }
+    S_symbol id = S_tkn.u.sym;
+
+    IR_name fqn  = IR_NamespaceName (parent, id, pos);
+
+    IR_type ty = IR_namesLookupType (parent, id);
+    if (ty)
+    {
+        if (ty->kind != Ty_unresolved)
+            EM_error (S_tkn.pos, "%s already exists in this namespace");
+    }
+    else
+    {
+        ty = IR_TypeUnresolved (pos, fqn);
+        IR_namesAddType (parent, id, ty);
     }
     S_nextToken();
 
-    LOG_printf (LOG_DEBUG, "class declaration, id=%s\n", S_name(id));
-
-    while (S_tkn.kind != S_RBRACE)
+    if (S_tkn.kind == S_LESS)
     {
-        S_pos pos = S_tkn.pos;
-
-        if (S_tkn.kind == S_LBRACKET)
-            _attributes();
-
-        uint32_t mods=0;
-        while (_modifier (&mods));
-
-        if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
-        {
-            _method_or_field_declaration (ty->u.cls.members, pos, mods, ty, names);
-        }
-        else
-        {
-            EM_error (S_tkn.pos, "sorry, only field or method members are supported yet");
-            assert(false); // FIXME
-        }
+        EM_error (S_tkn.pos, "sorry, type parameters are not supported yet"); // FIXME
+        return;
     }
 
-    S_nextToken(); // skip }
+    //IR_typeDesignator tdBase = NULL;
+    if (S_tkn.kind == S_COLON)
+    {
+        EM_error (S_tkn.pos, "sorry, base interfaces are not supported yet"); // FIXME
+        return;
+    }
+
+    if (S_tkn.kind == S_WHERE)
+    {
+        EM_error (S_tkn.pos, "sorry, type parameter constraints are not supported yet"); // FIXME
+        return;
+    }
+
+    ty->kind                    = Ty_interface;
+    ty->pos                     = pos;
+    ty->u.intf.name             = fqn;
+    ty->u.intf.visibility       = visibility;
+    ty->u.intf.implements       = NULL;
+    ty->u.intf.members          = IR_MemberList();
+    ty->u.intf.virtualMethodCnt = 0;
+
+    IR_definition def = IR_DefinitionType (parent, id, ty);
+    IR_assemblyAdd (_g_assembly, def);
+
+    IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
+
+    if (S_tkn.kind == S_LBRACE)
+    {
+        S_nextToken();
+
+        while (S_tkn.kind != S_RBRACE)
+        {
+            S_pos pos = S_tkn.pos;
+
+            if (S_tkn.kind == S_LBRACKET)
+                _attributes();
+
+            uint32_t mods=0;
+            while (_modifier (&mods));
+
+            if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
+            {
+                IR_member member =_method_or_field_or_constructor_declaration (ty->u.intf.members, pos, mods, ty, names);
+                if (member && (member->kind == IR_recField))
+                    EM_error (S_tkn.pos, "interfaces cannot have field members");
+            }
+            else
+            {
+                EM_error (S_tkn.pos, "interfaces: sorry, only method members are supported yet");
+                assert(false); // FIXME
+            }
+        }
+
+        S_nextToken(); // skip }
+    }
+
     if (S_tkn.kind == S_SEMICOLON)
         S_nextToken();
 }
@@ -1788,11 +1937,6 @@ struct_declaration
     : 'struct'
       identifier type_parameter_list? struct_interfaces?
       type_parameter_constraints_clause* struct_body ';'?
-    ;
-interface_declaration
-    : 'interface'
-      identifier variant_type_parameter_list? interface_base?
-      type_parameter_constraints_clause* interface_body ';'?
     ;
 enum_declaration
     : 'enum' identifier enum_base? enum_body ';'?
@@ -1830,8 +1974,7 @@ static bool _type_declaration (IR_namespace parent)
             assert(false);
             break;
         case S_INTERFACE:
-            // FIXME: implement
-            assert(false);
+            _interface_declaration (mods, parent);
             break;
         case S_ENUM:
             // FIXME: implement
@@ -1996,10 +2139,11 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
 void PA_boot(void)
 {
-    S_System     = S_Symbol("System");
-    S_Object     = S_Symbol("Object");
-    S__vTablePtr = S_Symbol("_vTablePtr");
-    S_this       = S_Symbol("this");
+    S_System        = S_Symbol("System");
+    S_Object        = S_Symbol("Object");
+    S__vTablePtr    = S_Symbol("_vTablePtr");
+    S_this          = S_Symbol("this");
+    S___CONSTRUCTOR = S_Symbol("__CONSTRUCTOR");
 }
 
 void PA_init(void)
