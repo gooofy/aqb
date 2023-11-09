@@ -1201,6 +1201,7 @@ static bool _varDeclaration (IR_variable v, SEM_context context)
         case Ty_uint32:
         case Ty_single:
         case Ty_double:
+        case Ty_reference:
             if (v->initExp)
             {
                 S_pos pos = v->initExp->pos;
@@ -1214,10 +1215,6 @@ static bool _varDeclaration (IR_variable v, SEM_context context)
 
                 CG_transAssignment (context->code, pos, context->frame, &se->u.cg, &initExp.u.cg);
             }
-            break;
-
-        case Ty_reference:
-            assert (!v->initExp); // FIXME
             break;
 
         case Ty_class:
@@ -1471,22 +1468,44 @@ static bool _elaborateExprConst (IR_expression expr, SEM_context context, SEM_it
     return true;
 }
 
+static bool _makeCG (S_pos pos, SEM_item *item, SEM_context context)
+{
+    switch (item->kind)
+    {
+        case SIK_cg:
+            return true;
+
+        case SIK_member:
+        {
+            IR_member member = item->u.member;
+            item->kind = SIK_cg;
+            assert (context->thisParam.kind);
+            item->u.cg = context->thisParam;
+            CG_transField (context->code, pos, context->frame, &item->u.cg, member);
+            return true;
+        }
+        default:
+            assert(false);
+    }
+    return false;
+}
+
 static bool _elaborateExprBinary (IR_expression expr, SEM_context context, SEM_item *res)
 {
     SEM_item b;
     S_pos    pos = expr->pos;
 
     if (!_elaborateExpression (expr->u.binop.a, context, res))
-        return EM_error (pos, "expression expected here.");
+        return EM_error (pos, "expression expected here. [1]");
 
-    if (res->kind != SIK_cg)
-        return EM_error (pos, "expression expected here.");
+    if (!_makeCG (pos, res, context))
+        return EM_error (pos, "expression expected here. [2]");
 
     if (!_elaborateExpression (expr->u.binop.b, context, &b))
-        return EM_error (pos, "expression expected here.");
+        return EM_error (pos, "expression expected here. [3]");
 
-    if (b.kind != SIK_cg)
-        return EM_error (pos, "expression expected here.");
+    if (!_makeCG (pos, &b, context))
+        return EM_error (pos, "expression expected here. [4]");
 
     IR_type tyA     = CG_ty(&res->u.cg);
     IR_type tyB     = CG_ty(&b.u.cg);
@@ -1506,6 +1525,10 @@ static bool _elaborateExprBinary (IR_expression expr, SEM_context context, SEM_i
     {
         case IR_expADD: oper = CG_plus ; break;
         case IR_expSUB: oper = CG_minus; break;
+        case IR_expMUL: oper = CG_mul  ; break;
+        case IR_expDIV: oper = CG_div  ; break;
+        case IR_expMOD: oper = CG_mod  ; break;
+
         default:
             return EM_error (pos, "sorry, this binary operation has not been implemented yet");
     }
@@ -1605,25 +1628,11 @@ static bool _elaborateLValue (IR_expression expr, SEM_context context, SEM_item 
     if (!_elaborateExpression (expr, context, res))
         return false;
 
-    switch (res->kind)
-    {
-        case SIK_cg:
-            CG_loadRef (context->code, expr->pos, context->frame, &res->u.cg);
-            return true;
+    if (!_makeCG (expr->pos, res, context))
+        return false;
 
-        case SIK_member:
-        {
-            IR_member member = res->u.member;
-            res->kind = SIK_cg;
-            res->u.cg = context->thisParam;
-            CG_transField (context->code, expr->pos, context->frame, &res->u.cg, member);
-            break;
-        }
-
-        default:
-            assert(false);
-    }
-    return false;
+    CG_loadRef (context->code, expr->pos, context->frame, &res->u.cg);
+    return true;
 }
 
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1647,6 +1656,9 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
 
         case IR_expADD:
         case IR_expSUB:
+        case IR_expMUL:
+        case IR_expDIV:
+        case IR_expMOD:
             return _elaborateExprBinary (expr, context, res);
 
         case IR_expEQU:
@@ -1735,6 +1747,38 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace
 
             CG_transLabel    (ctx->code, stmt->pos, ctx->breaklbl);
 
+            break;
+        }
+        case IR_stmtReturn:
+        {
+            if (stmt->u.ret)
+            {
+                if (context->returnVar.kind != IK_none)
+                {
+                    SEM_item res;
+                    if (!_elaborateExpression (stmt->u.ret, context, &res))
+                    {
+                        EM_error (stmt->u.ret->pos, "failed to elaborate return expression");
+                        return;
+                    }
+                    if (!_makeCG (stmt->u.ret->pos, &res, context))
+                    {
+                        EM_error (stmt->u.ret->pos, "cannot return this item in this context");
+                        return;
+                    }
+
+                    if (!_convertTy (&res.u.cg, stmt->pos, context->returnVar.ty, /*explicit=*/false, context))
+                    {
+                        EM_error (stmt->pos, "type mismatch (return).");
+                    }
+
+                    CG_transAssignment (context->code, stmt->pos, context->frame, &context->returnVar, &res.u.cg);
+                }
+                else
+                {
+                    EM_error (stmt->pos, "return with a value in a void function");
+                }
+            }
             break;
         }
         default:
