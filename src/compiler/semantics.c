@@ -24,6 +24,7 @@ struct SEM_context_
     Temp_label    contlbl;
     Temp_label    breaklbl;
     CG_item       returnVar;
+    CG_item       thisParam;
 
     TAB_table     blockEntries; // symbol -> SEM_item
 };
@@ -38,10 +39,10 @@ struct SEM_item_
     SEM_itemKind      kind;
     union
     {
-        CG_item                                                        cg;
-        struct { Temp_temp thisReg; IR_type thisTy; IR_member m;   }   member;
-        IR_namespace                                                   names;
-        IR_type                                                        type;
+        CG_item       cg;
+        IR_member     member;
+        IR_namespace  names;
+        IR_type       type;
     } u;
 };
 
@@ -138,6 +139,7 @@ static SEM_context _SEM_Context (SEM_context parent)
         context->contlbl   = parent->contlbl;
         context->breaklbl  = parent->breaklbl;
         context->returnVar = parent->returnVar;
+        context->thisParam = parent->thisParam;
     }
 
     context->blockEntries = TAB_empty (UP_ir);
@@ -1275,7 +1277,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         EM_error (pos, "failed to elaborate method");
         return false;
     }
-    if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethods))
+    if ((fun.kind != SIK_member) || (fun.u.member->kind != IR_recMethods))
     {
         EM_error (pos, "tried to call something that is not a method");
         return false;
@@ -1295,7 +1297,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         n->item = item.u.cg;
     }
 
-    return _transCallMethod(pos, fun.u.member.m->u.methods, args, context, res);
+    return _transCallMethod(pos, fun.u.member->u.methods, args, context, res);
 }
 
 static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1372,9 +1374,9 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
             if (member)
             {
                 res->kind = SIK_member;
-                res->u.member.thisReg = NULL;
-                res->u.member.thisTy  = parent.u.type;
-                res->u.member.m       = member;
+                //res->u.member.thisReg = NULL;
+                //res->u.member.thisTy  = parent.u.type;
+                res->u.member  = member;
                 return true;
             }
             EM_error (expr->pos, "failed to resolve %s [1]", S_name (id)); 
@@ -1609,9 +1611,17 @@ static bool _elaborateLValue (IR_expression expr, SEM_context context, SEM_item 
             CG_loadRef (context->code, expr->pos, context->frame, &res->u.cg);
             return true;
 
+        case SIK_member:
+        {
+            IR_member member = res->u.member;
+            res->kind = SIK_cg;
+            res->u.cg = context->thisParam;
+            CG_transField (context->code, expr->pos, context->frame, &res->u.cg, member);
+            break;
+        }
+
         default:
             assert(false);
-            
     }
     return false;
 }
@@ -1993,14 +2003,6 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext)
             CG_NoneItem (&context->returnVar);
         }
 
-        // FIXME make members available in local context
-
-        //if (proc->tyOwner && !proc->isStatic)
-        //{
-        //    // FIXME lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
-        //    assert(false);
-        //}
-
         CG_itemListNode iln = funFrame->formals->first;
         for (IR_formal formal = proc->formals;
              formal; formal = formal->next, iln = iln->next)
@@ -2008,6 +2010,9 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext)
             SEM_item *se = _SEM_Item (SIK_cg);
             se->u.cg = iln->item;
             TAB_enter (context->blockEntries, formal->id, se);
+            // keep <this> param for member accesses
+            if (proc->tyOwner && !proc->isStatic && formal->id == S_this)
+                context->thisParam = iln->item;
         }
 
         //assert(false); // FIXME
@@ -2585,9 +2590,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
         }
 
         SEM_item *se = _SEM_Item (SIK_member);
-        se->u.member.thisReg = NULL;
-        se->u.member.thisTy  = tyCls;
-        se->u.member.m       = member;
+        se->u.member = member;
         TAB_enter (context->blockEntries, member->id, se);
     }
 
