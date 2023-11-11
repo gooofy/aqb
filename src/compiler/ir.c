@@ -261,6 +261,8 @@ int IR_typeSize (IR_type ty)
         //     return ty->u.sarray.uiSize;
         //case Ty_record:
         //    return ty->u.record.uiSize;
+        case Ty_interface:
+            return 0;
         case Ty_class:
             return ty->u.cls.uiSize;
         default:
@@ -309,11 +311,10 @@ static string _genSystemTypeDesc (IR_type ty)
             //                                                    S_name(ty->mod->name),
             //                                                    S_name(ty->u.record.name)));
             //    break;
-            //case Ty_interface:
-            //    ty->systemTypeDesc = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-            //                                                    S_name(ty->mod->name),
-            //                                                    S_name(ty->u.interface.name)));
-            //    break;
+            case Ty_interface:
+                ty->systemTypeDesc = td = IR_name2string (ty->u.intf.name, "_");
+                break;
+
             case Ty_class:
                 ty->systemTypeDesc = td = IR_name2string (ty->u.cls.name, "_");
                 break;

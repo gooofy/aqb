@@ -46,7 +46,7 @@ namespace Testcase12
 
             // create object, test functionality via object ref
 
-            myc1 o = new myc1(23);
+            // myc1 o = new myc1(23);
 
             // DIM o AS myc1 PTR = NEW myc1(23)
 

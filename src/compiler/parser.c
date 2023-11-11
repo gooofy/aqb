@@ -1397,12 +1397,13 @@ static IR_block _block (IR_namespace parent)
 
 static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner, IR_namespace parent)
 {
-    IR_visibility visibility    = IR_visPrivate;
     bool          isStatic      = false;
     bool          isExtern      = false;
     bool          isVirtual     = false;
     bool          isOverride    = false;
     IR_member     member        = NULL;
+    bool          inIntf        = tyOwner && tyOwner->kind == Ty_interface;
+    IR_visibility visibility    = inIntf ? IR_visPublic : IR_visPrivate;
 
     if (_check_modifier(&mods, MODF_PUBLIC))
         visibility = IR_visPublic;
@@ -1413,6 +1414,12 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
     if (_check_modifier(&mods, MODF_INTERNAL))
         visibility = IR_visInternal;
 
+    if (inIntf && visibility != IR_visPublic)
+    {
+        if (visibility != IR_visPublic)
+            EM_error (pos, "interfaces members must be public");
+    }
+
     if (_check_modifier(&mods, MODF_EXTERN))
         isExtern = true;
     if (_check_modifier(&mods, MODF_STATIC))
@@ -1420,12 +1427,17 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
     if (_check_modifier(&mods, MODF_VIRTUAL))
         isVirtual = true;
     if (_check_modifier(&mods, MODF_OVERRIDE))
+    {
         isOverride = true;
+        if (inIntf)
+            EM_error (pos, "override attribute is invalid for interface members");
+    }
 
     if (isVirtual && isOverride)
         EM_error (S_tkn.pos, "method: can't combine override with virtual");
 
     isVirtual |= isOverride;
+    isVirtual |= inIntf;
 
     if (mods)
     {
@@ -1560,6 +1572,9 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
     else
     {
         // field declaration
+
+        if (inIntf)
+            EM_error (pos, "interfaces cannot have field members");
 
         while (true)
         {
@@ -1914,9 +1929,7 @@ static void _interface_declaration (uint32_t mods, IR_namespace parent)
 
             if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
             {
-                IR_member member =_method_or_field_or_constructor_declaration (ty->u.intf.members, pos, mods, ty, names);
-                if (member && (member->kind == IR_recField))
-                    EM_error (S_tkn.pos, "interfaces cannot have field members");
+                _method_or_field_or_constructor_declaration (ty->u.intf.members, pos, mods, ty, names);
             }
             else
             {

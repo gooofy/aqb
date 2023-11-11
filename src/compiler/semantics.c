@@ -62,7 +62,6 @@ static S_symbol S_Diagnostics;
 static S_symbol S___gc_scan;
 static S_symbol S_Object;
 
-//static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
 // System.String / System.GC / System.Array / System.Type / System.Object type caching
@@ -2020,63 +2019,6 @@ static void _elaborateProc (IR_proc proc, SEM_context parentContext)
             return;
     }
 
-    if (!proc->isExtern && proc->block)
-    {
-        CG_frame funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
-
-        //E_env lenv = FE_mod->env;
-        //E_env wenv = NULL;
-
-        AS_instrList code = AS_InstrList();
-        SEM_context context = _SEM_Context (parentContext);
-        context->code           = code;
-        context->frame          = funFrame;
-        context->exitlbl        = Temp_newlabel();
-        context->contlbl        = NULL;
-        context->breaklbl       = NULL;
-
-        if (proc->returnTy)
-        {
-            CG_allocVar (&context->returnVar, funFrame, /*name=*/NULL, /*expt=*/false, proc->returnTy);
-            CG_item zero;
-            CG_ZeroItem (&zero, proc->returnTy);
-            CG_transAssignment (code, proc->pos, funFrame, &context->returnVar, &zero);
-        }
-        else
-        {
-            CG_NoneItem (&context->returnVar);
-        }
-
-        CG_itemListNode iln = funFrame->formals->first;
-        for (IR_formal formal = proc->formals;
-             formal; formal = formal->next, iln = iln->next)
-        {
-            SEM_item *se = _SEM_Item (SIK_cg);
-            se->u.cg = iln->item;
-            TAB_enter (context->blockEntries, formal->id, se);
-            // keep <this> param for member accesses
-            if (proc->tyOwner && !proc->isStatic && formal->id == S_this)
-                context->thisParam = iln->item;
-        }
-
-        //assert(false); // FIXME
-        //context->names = proc->block->names;
-
-        _elaborateNames (proc->block->names, context);
-
-        for (IR_statement stmt=proc->block->first; stmt; stmt=stmt->next)
-        {
-            _elaborateStmt (stmt, context, proc->block->names);
-        }
-
-        CG_procEntryExit(proc->pos,
-                         funFrame,
-                         code,
-                         &context->returnVar,
-                         context->exitlbl,
-                         IR_procIsMain (proc),
-                         /*expt=*/proc->visibility == IR_visPublic);
-    }
 }
 
 static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context context)
@@ -2173,9 +2115,9 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, SEM_context conte
     {
         switch (tyCls->kind)
         {
-            //case Ty_interface:
-            //    vTableIdx = tyCls->u.interface.virtualMethodCnt++;
-            //    break;
+            case Ty_interface:
+                vTableIdx = tyCls->u.intf.virtualMethodCnt++;
+                break;
             case Ty_class:
                 vTableIdx = tyCls->u.cls.virtualMethodCnt++;
                 break;
@@ -2231,6 +2173,8 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 
 static void _assembleVTables (IR_type tyCls)
 {
+    Temp_label vtlabel;
+
     S_pos pos = tyCls->pos;
     IR_type tyClsRef = IR_getReference (pos, tyCls);
 
@@ -2254,88 +2198,78 @@ static void _assembleVTables (IR_type tyCls)
     CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
     AS_instrList il = AS_InstrList();
 
-    // assemble vtable for tyCls
-
-    Temp_label vtlabel = Temp_namedlabel(strconcat(UP_ir, "__", strconcat(UP_ir, clsLabel, "__vtable")));
-    CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/false, /*size=*/0, /*ty=*/NULL);
-
-    _assembleClassVTable (vTableFrag, tyCls);
-    // set up vTable special entries
-    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel (tyCls), VTABLE_SPECIAL_ENTRY_TYPEDESC);
-
-    if (!tyCls->u.cls.virtualMethodCnt)
-    {
-        // ensure vtable always exists
-        CG_dataFragAddConst (vTableFrag, IR_ConstInt(IR_TypeUInt32(), 0));
-    }
-
-    // add code to __init function that assigns vTablePtr
-
-    CG_item objVTablePtr = frame->formals->first->item; // <this>
-    CG_transField(il, pos, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
-
-    CG_item classVTablePtr;
-    CG_HeapPtrItem (&classVTablePtr, vtlabel, IR_TypeUInt32Ptr());
-    CG_loadRef (il, pos, frame, &classVTablePtr);
-    classVTablePtr.kind = IK_inReg;
-
-    CG_transAssignment (il, pos, frame, &objVTablePtr, &classVTablePtr);
-
     // assemble and assign vtables for each implemented interface
+    // (we may identify methods as virtual here, since methods that override interface
+    //  methods do not need to be declared using the override keyword in C#)
 
     for (IR_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
     {
-        // FIXME
-        assert(false);
-#if 0
+        IR_type tyIntf = implements->intfTy;
+
+        if (tyIntf->kind != Ty_interface)
+            continue;                       // -> base class
+
         vtlabel = Temp_namedlabel(strprintf (UP_ir, "__intf_vtable_%s_%s", clsLabel,
-                                             S_name(implements->intf->u.interface.name)));
-        CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+                                             IR_name2string(tyIntf->u.intf.name, "_")));
+        CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/false, /*size=*/0, /*ty=*/NULL);
         int32_t offset = implements->vTablePtr->u.field.uiOffset;
-        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_Long(), offset));
+        CG_dataFragAddConst (vTableFrag, IR_ConstInt(IR_TypeInt32(), offset));
 
-        Ty_ty tyIntf = implements->intf;
-
-        for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
+        for (IR_member intfMember = tyIntf->u.intf.members->first; intfMember; intfMember=intfMember->next)
         {
             switch (intfMember->kind)
             {
-                case Ty_recMethod:
+                case IR_recMethods:
                 {
-                    Ty_proc intfProc = intfMember->u.method->proc;
-                    assert (intfMember->u.method->vTableIdx >= 0);
-
-                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
-                    if (!member || (member->kind != Ty_recMethod))
+                    for (IR_method m = intfMember->u.methods->first; m; m=m->next)
                     {
-                        EM_error (pos, "Class %s is missing an implementation for %s.%s",
-                                  S_name(tyCls->u.cls.name),
-                                  S_name(tyIntf->u.interface.name),
-                                  S_name(intfProc->name));
-                        continue;
-                    }
+                        IR_proc intfProc = m->proc;
+                        assert (m->vTableIdx >= 0);
 
-                    if (member->u.method->vTableIdx < 0)
-                    {
-                        EM_error (pos, "Class %s: implementation for %s.%s needs to be declared as virtual",
-                                  S_name(tyCls->u.cls.name),
-                                  S_name(tyIntf->u.interface.name),
-                                  S_name(intfProc->name));
-                        continue;
-                    }
-                    Ty_proc proc = member->u.method->proc;
-                    if (!matchProcSignatures (proc, intfProc))
-                    {
-                        EM_error (pos, "Class %s: implementation for %s.%s signature mismatch",
-                                  S_name(tyCls->u.cls.name),
-                                  S_name(tyIntf->u.interface.name),
-                                  S_name(intfProc->name));
-                        continue;
-                    }
+                        IR_member member = IR_findMember (tyCls, intfMember->id, /*checkBase=*/true);
+                        if (!member || (member->kind != IR_recMethods))
+                        {
+                            EM_error (pos, "Class %s is missing an implementation for %s.%s",
+                                      IR_name2string(tyCls->u.cls.name, "."),
+                                      IR_name2string(tyIntf->u.intf.name, "."),
+                                      S_name(intfProc->id));
+                            continue;
+                        }
 
-                    CG_dataFragSetPtr (vTableFrag, proc->label, intfMember->u.method->vTableIdx+1);
+                        IR_method impl = NULL;
+                        for (impl = member->u.methods->first; impl; impl=impl->next)
+                        {
+                            if (impl->proc->signature == intfProc->signature)
+                                break;
+                        }
+
+                        if (!impl)
+                        {
+                            EM_error (pos, "Class %s: no implementation matches signature for %s.%s",
+                                      IR_name2string(tyCls->u.cls.name, "."),
+                                      IR_name2string(tyIntf->u.intf.name, "."),
+                                      S_name(intfProc->id));
+                            continue;
+                        }
+
+                        if (impl->vTableIdx < 0)
+                        {
+                            impl->isVirtual  = true;
+                            impl->isOverride = true;
+                            impl->vTableIdx = tyCls->u.cls.virtualMethodCnt++;
+                            //EM_error (pos, "Class %s: implementation for %s.%s needs to be declared as virtual",
+                            //          IR_name2string(tyCls->u.cls.name, "."),
+                            //          IR_name2string(tyIntf->u.intf.name, "."),
+                            //          S_name(intfProc->id));
+                            //continue;
+                        }
+
+                        IR_proc proc = impl->proc;
+                        CG_dataFragSetPtr (vTableFrag, proc->label, impl->vTableIdx+1);
+                    }
                     break;
                 }
+#if 0 // FIXME
                 case Ty_recProperty:
                 {
                     Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
@@ -2424,12 +2358,12 @@ static void _assembleVTables (IR_type tyCls)
 
                     break;
                 }
+#endif // 0
                 default:
-                    assert (FALSE);
+                    assert (false);
             }
 
         }
-#endif // 0
 
         // add code to __init function that assigns vTableptr
 
@@ -2443,6 +2377,33 @@ static void _assembleVTables (IR_type tyCls)
 
         CG_transAssignment (il, pos, frame, &objVTablePtr, &intfVTablePtr);
     }
+
+    // assemble vtable for tyCls
+
+    vtlabel = Temp_namedlabel(strconcat(UP_ir, "__", strconcat(UP_ir, clsLabel, "__vtable")));
+    CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/false, /*size=*/0, /*ty=*/NULL);
+
+    _assembleClassVTable (vTableFrag, tyCls);
+    // set up vTable special entries
+    CG_dataFragSetPtr (vTableFrag, IR_genSystemTypeLabel (tyCls), VTABLE_SPECIAL_ENTRY_TYPEDESC);
+
+    if (!tyCls->u.cls.virtualMethodCnt)
+    {
+        // ensure vtable always exists
+        CG_dataFragAddConst (vTableFrag, IR_ConstInt(IR_TypeUInt32(), 0));
+    }
+
+    // add code to __init function that assigns vTablePtr
+
+    CG_item objVTablePtr = frame->formals->first->item; // <this>
+    CG_transField(il, pos, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
+
+    CG_item classVTablePtr;
+    CG_HeapPtrItem (&classVTablePtr, vtlabel, IR_TypeUInt32Ptr());
+    CG_loadRef (il, pos, frame, &classVTablePtr);
+    classVTablePtr.kind = IK_inReg;
+
+    CG_transAssignment (il, pos, frame, &objVTablePtr, &classVTablePtr);
 
     CG_procEntryExit(pos,
                      frame,
@@ -2568,12 +2529,57 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
     return gcscanmember;
 }
 
+static void _clsAddIntfImplRecursive(IR_type tyCls, IR_type tyIntf)
+{
+    IR_implements impl = tyCls->u.cls.implements;
+
+    while (impl)
+    {
+        if (impl->intfTy == tyIntf)
+            break;
+        impl=impl->next;
+    }
+
+    if (impl && impl->vTablePtr)
+        return;                         // we already know this interface
+
+    // create member entry for vTable Ptr
+
+    S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", IR_name2string(tyIntf->u.intf.name, "_")));
+
+    IR_member vTablePtr = IR_MemberField (IR_visProtected, sVTableEntry, /*td=*/NULL);
+    vTablePtr->u.field.ty = IR_TypeVTablePtr();
+
+    IR_fieldCalcOffset (tyCls, vTablePtr);
+    IR_addMember (tyCls->u.cls.members, vTablePtr);
+
+    if (!impl)
+    {
+        impl = IR_Implements (S_noPos, /*td=*/NULL);
+        impl->intfTy = tyIntf;
+
+        impl->next = tyCls->u.cls.implements;
+        tyCls->u.cls.implements = impl;
+    }
+
+    impl->vTablePtr = vTablePtr;
+
+    // recursion over sub-interface -> squash all of them down into a linear list
+
+    for (IR_implements implements = tyIntf->u.intf.implements; implements; implements=implements->next)
+        _clsAddIntfImplRecursive (tyCls, implements->intfTy);
+}
+
 static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
 
     SEM_context context = _SEM_Context (/*parent=*/ NULL);
     context->ctxnames = parent;
+
+    /*
+     * determine base class type
+     */
 
     IR_type tyBase = NULL;
 
@@ -2601,22 +2607,30 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
     }
 
     tyCls->u.cls.baseTy = tyBase;
+    // take base class vtable entries into account
+    if (tyBase)
+        tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
+
+    /*
+     * add interface vTablePtr member entries
+     */
+
+    for (IR_implements impl = tyCls->u.cls.implements; impl; impl=impl->next)
+    {
+        if (impl->intfTy && impl->intfTy->kind == Ty_interface)
+        {
+            _clsAddIntfImplRecursive (tyCls, impl->intfTy);
+        }
+    }
 
     /*
      * elaborate fields
      */
 
-    // take base class vtable entries into account
-    if (tyBase)
-    {
-        tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
-    }
-
-    // FIXME: interface vTables!
-
     // elaborate other members
 
-    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
+    IR_memberList ml = tyCls->u.cls.members;
+    for (IR_member member = ml->first; member; member=member->next)
     {
         switch (member->kind)
         {
@@ -2632,10 +2646,6 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
             default:
                 break;
         }
-
-        SEM_item *se = _SEM_Item (SIK_member);
-        se->u.member = member;
-        TAB_enter (context->blockEntries, member->id, se);
     }
 
     /*
@@ -2646,7 +2656,6 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
     IR_member gcscanmember = _assembleClassGCScanMethod (tyCls);
 
-    IR_memberList ml = tyCls->u.cls.members;
     if (ml->first)
     {
         gcscanmember->next = ml->first;
@@ -2710,7 +2719,7 @@ static void _elaborateInterface (IR_type tyIntf, IR_namespace parent)
         }
     }
 
-    //IR_registerType (tyIntf); // ensure System.Type typedescriptor gets generated if this is the main module
+    IR_registerType (tyIntf); // ensure System.Type typedescriptor gets generated if this is the main module
 }
 
 static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
@@ -2867,117 +2876,111 @@ static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context conte
     }
 
     return t;
+}
 
-
-#if 0
-IR_member IR_namesResolveMember (IR_name name, IR_using usings)
+static void _codegenProc (IR_proc proc, SEM_context parentContext)
 {
-    IR_namespace names = NULL;
-    IR_type      t     = NULL;
-
-    IR_symNode n = name->first;
-
-    for (IR_using u=usings; u; u=u->next)
+    if (!proc->isExtern && proc->block)
     {
-        if (u->alias)
+        CG_frame funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
+
+        //E_env lenv = FE_mod->env;
+        //E_env wenv = NULL;
+
+        AS_instrList code = AS_InstrList();
+        SEM_context context = _SEM_Context (parentContext);
+        context->code           = code;
+        context->frame          = funFrame;
+        context->exitlbl        = Temp_newlabel();
+        context->contlbl        = NULL;
+        context->breaklbl       = NULL;
+
+        if (proc->returnTy)
         {
-            if (n->sym != u->alias)
-                continue;
-            if (u->ty)
-            {
-                t = u->ty;
-                break;
-            }
-            names = u->names;
-            break;
+            CG_allocVar (&context->returnVar, funFrame, /*name=*/NULL, /*expt=*/false, proc->returnTy);
+            CG_item zero;
+            CG_ZeroItem (&zero, proc->returnTy);
+            CG_transAssignment (code, proc->pos, funFrame, &context->returnVar, &zero);
         }
         else
         {
-            if (u->names->id == n->sym)
-            {
-                names = u->names;
-                break;
-            }
+            CG_NoneItem (&context->returnVar);
         }
-    }
 
-    if (!t)
-    {
-        if (!names)
-            return NULL;
-
-        n = n->next;
-        while (n)
+        CG_itemListNode iln = funFrame->formals->first;
+        for (IR_formal formal = proc->formals;
+             formal; formal = formal->next, iln = iln->next)
         {
-            IR_namespace names2 = IR_namesResolveNames (names, n->sym, /*doCreate=*/false);
-            if (names2)
-            {
-                names = names2;
-                n = n->next;
-            }
-            else
-            {
-                t = IR_namesResolveType (name->pos, names, n->sym, /*usings=*/NULL, /*doCreate=*/false);
-                if (!t)
-                    return NULL;
-                n = n->next;
-                break;
-            }
+            SEM_item *se = _SEM_Item (SIK_cg);
+            se->u.cg = iln->item;
+            TAB_enter (context->blockEntries, formal->id, se);
+            // keep <this> param for member accesses
+            if (proc->tyOwner && !proc->isStatic && formal->id == S_this)
+                context->thisParam = iln->item;
         }
+
+        //assert(false); // FIXME
+        //context->names = proc->block->names;
+
+        _elaborateNames (proc->block->names, context);
+
+        for (IR_statement stmt=proc->block->first; stmt; stmt=stmt->next)
+        {
+            _elaborateStmt (stmt, context, proc->block->names);
+        }
+
+        CG_procEntryExit(proc->pos,
+                         funFrame,
+                         code,
+                         &context->returnVar,
+                         context->exitlbl,
+                         IR_procIsMain (proc),
+                         /*expt=*/proc->visibility == IR_visPublic);
+    }
+}
+
+static void _codegenMethodGroup (IR_methodGroup mg, IR_type tyCls, SEM_context context)
+{
+    for (IR_method method=mg->first; method; method=method->next)
+        _codegenProc (method->proc, context);
+}
+
+static void _codegenClass (IR_type tyCls, IR_namespace parent)
+{
+    assert (tyCls->kind == Ty_class);
+
+    SEM_context context = _SEM_Context (/*parent=*/ NULL);
+    context->ctxnames = parent;
+
+    // fill local class context
+
+    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
+    {
+        SEM_item *se = _SEM_Item (SIK_member);
+        se->u.member = member;
+        TAB_enter (context->blockEntries, member->id, se);
     }
 
-    IR_member mem = IR_findMember (t, n->sym, /*checkBase=*/true);
+    /*
+     * generate code for methods
+     */
 
-    return mem;
-}
-#endif
-    //if (ty->elaborated)
-    //    return;
-    //ty->elaborated = true;
-
-    //switch (ty->kind)
-    //{
-    //    case Ty_boolean:
-    //    case Ty_byte:
-    //    case Ty_sbyte:
-    //    case Ty_int16:
-    //    case Ty_uint16:
-    //    case Ty_int32:
-    //    case Ty_uint32:
-    //    case Ty_single:
-    //    case Ty_double:
-    //        break;
-
-    //    case Ty_class:
-    //        _elaborateClass (ty, usings);
-    //        break;
-
-    //    case Ty_interface:
-    //        assert(false);
-    //        break;
-
-    //    case Ty_reference:
-    //        _elaborateTypeDesignator (ty->u.ref, usings);
-    //        break;
-
-    //    case Ty_pointer:
-    //        _elaborateTypeDesignator (ty->u.pointer, usings);
-    //        break;
-
-    //    case Ty_unresolved:
-    //        EM_error (ty->pos, "unresolved type: %s", S_name (ty->u.unresolved));
-    //        break;
-
-    //    //case Ty_sarray:
-    //    //case Ty_darray:
-    //    //case Ty_record:
-    //    //case Ty_pointer:
-    //    //case Ty_any:
-    //    //case Ty_forwardPtr:
-    //    //case Ty_procPtr:
-    //    //case Ty_prc:
-    //        assert(false);
-    //}
+    IR_memberList ml = tyCls->u.cls.members;
+    for (IR_member member = ml->first; member; member=member->next)
+    {
+        switch (member->kind)
+        {
+            case IR_recMethods:
+                _codegenMethodGroup (member->u.methods, tyCls, context);
+                break;
+            case IR_recField:
+                continue;
+            case IR_recProperty:
+                assert(false); break; // FIXME
+            case IR_recConstructors:
+                assert(false); break; // FIXME
+        }
+    }
 }
 
 static void _genSystemType (IR_type ty)
@@ -3033,9 +3036,8 @@ static void _genSystemType (IR_type ty)
             // interfaces
             for (IR_implements i=ty->u.cls.implements; i; i=i->next)
             {
-                assert(false); // FIXME
-                //Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
-                //CG_dataFragAddPtr (frag, intfLabel);
+                Temp_label intfLabel = IR_genSystemTypeLabel (i->intfTy);
+                CG_dataFragAddPtr (frag, intfLabel);
             }
             CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
 
@@ -3053,17 +3055,16 @@ static void _genSystemType (IR_type ty)
         }
         case Ty_interface:
         {
-            assert(false); // FIXME
             //Temp_label label = IR_genSystemTypeLabel (ty);
             //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
 
-            //// interfaces
-            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
-            //{
-            //    Temp_label intfLabel = IR_genSystemTypeLabel (i->intf);
-            //    CG_dataFragAddPtr (descFrag, intfLabel);
-            //}
-            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
+            // interfaces
+            for (IR_implements i=ty->u.intf.implements; i; i=i->next)
+            {
+                Temp_label intfLabel = IR_genSystemTypeLabel (i->intfTy);
+                CG_dataFragAddPtr (frag, intfLabel);
+            }
+            CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0));
             break;
         }
         case Ty_reference:
@@ -3093,90 +3094,91 @@ static void _genSystemType (IR_type ty)
 
 void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
-    //_g_names_root = names_root;
-
     // resolve string type upfront
 
     _g_sys_names = IR_namesLookupNames (names_root, S_System, /*doCreate=*/true);
-
-    //IR_assembly assemblies = IR_getLoadedAssembliesList ();
 
     // elaborate semantics
 
     // phase I: resolve names
 
-    //for (=assemblies; assembly; assembly=assembly->next)
-    //{
-        for (IR_definition def=assembly->def_first; def; def=def->next)
+    for (IR_definition def=assembly->def_first; def; def=def->next)
+    {
+        switch (def->kind)
         {
-            switch (def->kind)
-            {
-                case IR_defType:
-                    switch (def->u.ty->kind)
-                    {
-                        case Ty_class:
-                            _elaborateClass (def->u.ty, def->names);
-                            break;
-                        case Ty_interface:
-                            _elaborateInterface (def->u.ty, def->names);
-                            break;
-                        default:
-                            assert(false);
-                    }
-                    break;
-                case IR_defProc:
-                    // FIXME: implement
-                    assert(false);
-                    break;
-            }
+            case IR_defType:
+                switch (def->u.ty->kind)
+                {
+                    case Ty_class:
+                        _elaborateClass (def->u.ty, def->names);
+                        break;
+                    case Ty_interface:
+                        _elaborateInterface (def->u.ty, def->names);
+                        break;
+                    default:
+                        assert(false);
+                }
+                break;
+            case IR_defProc:
+                // FIXME: implement
+                assert(false);
+                break;
         }
-    //}
+    }
 
-    // pase II: vTables, main module, tds
+    // phase II: assemble class vTables
 
-    //for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
-    //{
-        // assemble class vTables
+    for (IR_definition def=assembly->def_first; def; def=def->next)
+    {
+        if (def->kind != IR_defType)
+            continue;
+        if (def->u.ty->kind != Ty_class)
+            continue;
+        _assembleVTables (def->u.ty);
+    }
 
-        for (IR_definition def=assembly->def_first; def; def=def->next)
-        {
-            if (def->kind != IR_defType)
-                continue;
-            if (def->u.ty->kind != Ty_class)
-                continue;
-            _assembleVTables (def->u.ty);
-        }
+    // phase III: code generation
 
-        // main module? -> communicate stack size to runtime
+    for (IR_definition def=assembly->def_first; def; def=def->next)
+    {
+        if (def->kind != IR_defType)
+            continue;
+        if (def->u.ty->kind != Ty_class)
+            continue;
+        _codegenClass (def->u.ty, def->names);
+    }
 
-        bool is_main = !OPT_sym_fn;
-        if (is_main)
-        {
-            CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-            CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
-        }
+    // phase IV: main module, TDs
 
-        // generate toplevel fd table:
+    // main module? -> communicate stack size to runtime
 
-        if (is_main)
-        {
-            CG_frag frag = CG_DataFrag(Temp_namedlabel("___top_fd_table"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-            for (IR_assembly mln = IR_getLoadedAssembliesList(); mln; mln=mln->next)
-                CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->id)));
-            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->id)));
-            CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0)); // end marker
-        }
+    bool is_main = !OPT_sym_fn;
+    if (is_main)
+    {
+        CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+        CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
+    }
 
-        // generate System.Type.* type descriptors for all types that we came across
-        if (is_main)
-        {
-            TAB_iter iter = IR_iterateTypes();
-            IR_type ty, ty2;
+    // generate toplevel fd table:
 
-            while (TAB_next (iter, (void **)&ty, (void **)&ty2))
-                _genSystemType (ty);
-        }
-    //}
+    if (is_main)
+    {
+        CG_frag frag = CG_DataFrag(Temp_namedlabel("___top_fd_table"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+        for (IR_assembly mln = IR_getLoadedAssembliesList(); mln; mln=mln->next)
+            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->id)));
+        CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->id)));
+        CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0)); // end marker
+    }
+
+    // generate System.Type.* type descriptors for all types that we came across
+    if (is_main)
+    {
+        TAB_iter iter = IR_iterateTypes();
+        IR_type ty, ty2;
+
+        while (TAB_next (iter, (void **)&ty, (void **)&ty2))
+            _genSystemType (ty);
+    }
 }
 
 void SEM_boot(void)
