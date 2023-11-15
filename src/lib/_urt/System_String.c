@@ -16,11 +16,11 @@ System_String *_ZN6System6String6CreateEPhbE (UBYTE *str, BOOL owned)
 {
     DPRINTF ("*_System_String_Create: str=%s, owned=%d\n", str, owned);
 
-    System_String *obj = (System_String *)GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
+    System_String *obj = (System_String *)_ZN6System2GC9_AllocateEjjE(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
     if (!obj)
         ERROR (ERR_OUT_OF_MEMORY);
 
-    _System_String___init (obj);
+    _ZN6System6String6__initE (obj);
     // FIXME: constructor support _CSTRING_CONSTRUCTOR (obj, str, owned);
 
     obj->_str      = str;
@@ -28,7 +28,7 @@ System_String *_ZN6System6String6CreateEPhbE (UBYTE *str, BOOL owned)
     obj->_hashcode = CRC32_((UBYTE*) str, obj->_len);
     obj->_owned    = owned;
 
-    GC_REGISTER ((System_Object *)obj);
+    _ZN6System2GC9_RegisterERN6System6ObjectE ((System_Object *)obj);
 
     return obj;
 }

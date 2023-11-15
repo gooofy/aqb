@@ -132,13 +132,13 @@ struct IR_variable_
     IR_expression     initExp;
 };
 
-typedef enum {IR_pkFunction, IR_pkConstructor, IR_pkDestructor} IR_procKind;
+//typedef enum {IR_pkFunction, IR_pkConstructor, IR_pkDestructor} IR_procKind;
 typedef enum {IR_visPrivate, IR_visPublic, IR_visProtected, IR_visInternal} IR_visibility;
 
 struct IR_proc_
 {
     S_pos             pos;
-    IR_procKind       kind;
+    //IR_procKind       kind;
     IR_visibility     visibility;
     S_symbol          id;
     IR_type           tyOwner;   // methods only: pointer to class or interface this method belongs to
@@ -209,7 +209,7 @@ struct IR_type_
                 IR_type           baseTy;
                 IR_implements     implements;
                 //IR_member         constructors;
-                IR_proc           __init;
+                //IR_proc           __init;
                 IR_memberList     members;
                 int16_t           virtualMethodCnt;
                 IR_member         vTablePtr;                                } cls;
@@ -267,10 +267,11 @@ struct IR_const_
     } u;
 };
 
+typedef enum {IR_recMethods, IR_recField, IR_recProperty, IR_recConstructors} IR_memberKind;
 struct IR_member_
 {
     IR_member                                           next;
-    enum { IR_recMethods, IR_recField, IR_recProperty, IR_recConstructors } kind;
+    IR_memberKind                                       kind;
     S_symbol                                            id;
     IR_visibility                                       visibility;
     union
@@ -411,7 +412,7 @@ IR_type            IR_namesLookupType    (IR_namespace names, S_symbol id);
 IR_variable        IR_Variable           (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression initExpr);
 
 IR_formal          IR_Formal             (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg, bool isParams);
-IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic);
+IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, IR_name name);
@@ -440,8 +441,7 @@ IR_methodGroup     IR_MethodGroup        (void);
 void               IR_methodGroupAdd     (IR_methodGroup mg, IR_method method);
 
 IR_memberList      IR_MemberList         (void);
-IR_member          IR_MemberMethodGroup  (IR_visibility visibility, S_symbol id, IR_methodGroup mg);
-IR_member          IR_MemberField        (IR_visibility visibility, S_symbol id, IR_typeDesignator td);
+IR_member          IR_Member             (IR_memberKind kind, IR_visibility visibility, S_symbol id);
 void               IR_fieldCalcOffset    (IR_type ty, IR_member field);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
 IR_member          IR_findMember         (IR_type ty, S_symbol id, bool checkBase);

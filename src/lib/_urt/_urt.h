@@ -258,7 +258,7 @@ struct System_String_
     BOOL            _owned;
 };
 
-VOID           _System_String___init (System_String *obj);
+VOID           _ZN6System6String6__initE                                    (System_String *this);
 VOID           _ZN6System6String9__gc_scanEPN6System2GCE                    (System_String *this, System_GC *gc);
 System_String *_ZN6System6String6CreateEPhbE                                (UBYTE    *initialBuffer, BOOL     owned);
 System_String *_ZN6System6String6FormatERN6System6StringEA_N6System6ObjectE (System_String *format, System_Array *args);
@@ -306,12 +306,13 @@ struct System_Diagnostics_Debug_
 VOID _ZN6System11Diagnostics5Debug9__gc_scanEPN6System2GCE (System_Diagnostics_Debug *this, System_GC *gc);
 VOID _ZN6System11Diagnostics5Debug6AssertEbE               (BOOL condition, System_String *compiler_msg);
 
-void           GC_RUN                (void);
-void           GC_REGISTER           (System_Object *obj);
-System_Object *GC_ALLOCATE_          (ULONG size, ULONG flags);
-void           GC_MARK_BLACK         (System_Object *obj);
-BOOL           GC_REACHABLE_         (System_Object *obj);
-// FIXME: PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
+VOID           _ZN6System2GC9__gc_scanEPN6System2GCE       (System_GC *this, System_GC *gc);
+VOID           _ZN6System2GC10_MarkBlackERN6System6ObjectE (System_Object *obj);
+VOID           _ZN6System2GC4_RunE                         (void);
+VOID           _ZN6System2GC9_RegisterERN6System6ObjectE   (System_Object *obj);
+System_Object *_ZN6System2GC9_AllocateEjjE                 (ULONG size, ULONG flags);
+BOOL           _ZN6System2GC10_ReachableERN6System6ObjectE (System_Object *obj);
+VOID           _ZN6System2GC6__initE                       (System_GC *this);
 
 typedef void (*_gc_scan_t)     (System_Object *obj);
 typedef void (*_gc_finalize_t) (System_Object *obj);

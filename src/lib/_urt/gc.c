@@ -36,13 +36,13 @@ typedef enum
 
 struct System_GC_
 {
-    // objects allocated by GC_ALLOCATE_(), but not GC_REGISTER()ed yet
+    // objects allocated by __gc_allocate(), but not __gc_register()ed yet
     System_Object  *unreg;
     // registered objects go here:
     System_Object  *heap_start, *heap_end;
     // heap statistics, used to determine when to auto-run our gc
-    uint32_t heap_size;     // total heap size (sum of all GC_ALLOCed objects)
-    uint32_t alloc_cnt;     // number of GC_ALLOCs since last GC_RUN
+    uint32_t heap_size;     // total heap size (sum of all __gc_allocate d objects)
+    uint32_t alloc_cnt;     // number of __gc_allocate s since last GC_RUN
     // gc will auto-run when these limits are reached
     uint32_t heap_limit;
     uint32_t alloc_limit;
@@ -133,7 +133,7 @@ static void _gc_mark_gray (System_Object *obj, System_GC *gc)
 }
 
 // called by gc_scan methods
-void GC_MARK_BLACK (System_Object *obj)
+VOID  _ZN6System2GC10_MarkBlackERN6System6ObjectE (System_Object *obj)
 {
     if (!obj)
         return;
@@ -247,7 +247,7 @@ static void _gc_scan_stacks (void)
 
 
 // garbage collector main entry
-void GC_RUN (void)
+VOID _ZN6System2GC4_RunE (void)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: adapt GC_RUN to System.Type rtti!");
 
@@ -340,14 +340,14 @@ void GC_RUN (void)
     }
 }
 
-System_Object *GC_ALLOCATE_ (ULONG size, ULONG flags)
+System_Object *_ZN6System2GC9_AllocateEjjE (ULONG size, ULONG flags)
 {
-    DPRINTF ("GC_ALLOCATE_: size=%ld, flags=%ld ...\n", size, flags);
+    DPRINTF ("__gc_allocate: size=%ld, flags=%ld ...\n", size, flags);
 
     if ( (_g_gc.heap_size >= _g_gc.heap_limit) || (_g_gc.alloc_cnt >= _g_gc.alloc_limit) )
     {
         _g_gc.alloc_cnt = 0;
-        GC_RUN();
+       _ZN6System2GC4_RunE ();
     }
     else
     {
@@ -358,17 +358,17 @@ System_Object *GC_ALLOCATE_ (ULONG size, ULONG flags)
     System_Object *obj = (System_Object *) AllocMem (size, flags | MEMF_CLEAR);
     if (!obj)
     {
-        GC_RUN();
+        _ZN6System2GC4_RunE();
         obj = (System_Object *) AllocMem (size, flags | MEMF_CLEAR);
         if (!obj)
         {
-            DPRINTF ("GC_ALLOCATE_: OOM1\n");
+            DPRINTF ("__gc_allocate: OOM1\n");
             ERROR (ERR_OUT_OF_MEMORY);
             return NULL;
         }
     }
 
-    DPRINTF ("GC_ALLOCATE_: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, obj);
+    DPRINTF ("__gc_allocate: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, obj);
     _gc_dump_heap();
 
     obj->__gc_size = size;
@@ -385,9 +385,9 @@ System_Object *GC_ALLOCATE_ (ULONG size, ULONG flags)
     return obj;
 }
 
-void GC_REGISTER (System_Object *p)
+VOID _ZN6System2GC9_RegisterERN6System6ObjectE (System_Object *p)
 {
-    DPRINTF ("GC_REGISTER: registering new heap object: 0x%08lx, size=%ld\n", p, p->__gc_size);
+    DPRINTF ("__gc_register: registering new heap object: 0x%08lx, size=%ld\n", p, p->__gc_size);
 
     _gc_dump_heap();
 
@@ -411,12 +411,12 @@ void GC_REGISTER (System_Object *p)
 
     _g_gc.heap_size += p->__gc_size;
 
-    DPRINTF ("GC_REGISTER: heap_stats: alloc_cnt=%ld, heap_size=%ld\n", _g_gc.alloc_cnt, _g_gc.heap_size);
+    DPRINTF ("__gc_register: heap_stats: alloc_cnt=%ld, heap_size=%ld\n", _g_gc.alloc_cnt, _g_gc.heap_size);
     _gc_dump_heap();
     //Permit();
 }
 
-BOOL GC_REACHABLE_ (System_Object *obj)
+BOOL _ZN6System2GC10_ReachableERN6System6ObjectE (System_Object *obj)
 {
     System_Object *p = _g_gc.heap_start;
     while (p)

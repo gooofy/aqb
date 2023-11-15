@@ -67,7 +67,11 @@ namespace System
 
     public static class GC
     {
-        public extern static void _MarkBlack (Object *obj);
+        public extern static void    _MarkBlack (Object obj);
+        public extern static void    _Run       ();
+        public extern static void    _Register  (Object obj);
+        public extern static Object  _Allocate  (uint size, uint flags);
+        public extern static bool    _Reachable (Object obj);
     }
 
 }

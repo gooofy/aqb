@@ -1402,6 +1402,7 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
     bool          isVirtual     = false;
     bool          isOverride    = false;
     IR_member     member        = NULL;
+    IR_memberKind memberKind    = IR_recMethods;
     bool          inIntf        = tyOwner && tyOwner->kind == Ty_interface;
     IR_visibility visibility    = inIntf ? IR_visPublic : IR_visPrivate;
 
@@ -1453,6 +1454,8 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
         if (S_tkn.kind == S_LPAREN)
         {
             id = S___CONSTRUCTOR;
+            memberKind = IR_recConstructors;
+            td = IR_TypeDesignator (/*name=*/NULL); // void, constructors do not return a value
         }
         else
         {
@@ -1481,9 +1484,10 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
         IR_methodGroup mg = NULL;
         if (member)
         {
-            if (member->kind != IR_recMethods)
+            if (member->kind != memberKind)
             {
-                EM_error (pos, "%s already declared as something other than a method.", S_name (id));
+                EM_error (pos, "%s already declared as something other than a %s.",
+                          S_name (id), memberKind==IR_recMethods ? "method" : "constructor");
                 return NULL;
             }
             mg = member->u.methods;
@@ -1496,10 +1500,15 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
         else
         {
             mg = IR_MethodGroup ();
-            IR_addMember (ml, IR_MemberMethodGroup (visibility, id, mg));
+            member = IR_Member (memberKind, visibility, id);
+            if (memberKind == IR_recConstructors)
+                member->u.constructors = mg;
+            else
+                member->u.methods = mg;
+            IR_addMember (ml, member);
         }
 
-        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, id, isExtern, isStatic);
+        IR_proc proc = IR_Proc (pos, visibility, tyOwner, id, isExtern, isStatic);
 
         proc->block = IR_Block (pos, parent);
 
@@ -1597,7 +1606,8 @@ static IR_member _method_or_field_or_constructor_declaration (IR_memberList ml, 
                 return NULL;
             }
 
-            member = IR_MemberField (visibility, id, td);
+            member = IR_Member (IR_recField, visibility, id);
+            member->u.field.td = td;
             IR_addMember (ml, member);
 
             if (S_tkn.kind != S_COMMA)
@@ -1757,14 +1767,13 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
     ty->u.cls.uiSize           = 0;
     ty->u.cls.baseTy           = tyBase;
     ty->u.cls.implements       = implFirst;
-    ty->u.cls.__init           = NULL;
     ty->u.cls.members          = IR_MemberList();
     ty->u.cls.virtualMethodCnt = 0;
 
     // vTablePtr has to be the very first field
     if (!tyBase)
     {
-        ty->u.cls.vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, /*td=*/NULL);
+        ty->u.cls.vTablePtr = IR_Member (IR_recField, IR_visProtected, S__vTablePtr);
         ty->u.cls.vTablePtr->u.field.ty = IR_TypeVTablePtr();
         IR_addMember (ty->u.cls.members, ty->u.cls.vTablePtr);
     }
@@ -1794,22 +1803,7 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
 
             if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
             {
-            //    if ( (S_tkn.kind == S_IDENT) && (S_tkn.u.sym == id) )
-            //    {
-            //        IR_method c = _constructor_declaration (pos, mods, ty, names);
-
-            //        if (!ty->u.cls.constructors)
-            //            ty->u.cls.constructors = IR_MethodGroup();
-
-            //        if (ty->u.cls.constructors->last)
-            //            ty->u.cls.constructors->last = ty->u.cls.constructors->last->next = c;
-            //        else
-            //            ty->u.cls.constructors->first = ty->u.cls.constructors->last = c;
-            //    }
-            //    else
-            //    {
-                    _method_or_field_or_constructor_declaration (ty->u.cls.members, pos, mods, ty, names);
-            //    }
+                _method_or_field_or_constructor_declaration (ty->u.cls.members, pos, mods, ty, names);
             }
             else
             {

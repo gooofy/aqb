@@ -492,13 +492,12 @@ IR_formal IR_Formal (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression
     return f;
 }
 
-IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic)
+IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic)
 {
     IR_proc p = U_poolAllocZero (UP_ir, sizeof (*p));
 
     p->pos        = pos;
     p->visibility = visibility;
-    p->kind       = kind;
     p->tyOwner    = tyOwner;
     p->id         = id;
     p->isExtern   = isExtern;
@@ -615,29 +614,14 @@ IR_memberList IR_MemberList (void)
     return ml;
 }
 
-IR_member IR_MemberMethodGroup  (IR_visibility visibility, S_symbol id, IR_methodGroup mg)
+IR_member IR_Member (IR_memberKind kind, IR_visibility visibility, S_symbol id)
 {
     IR_member m = U_poolAllocZero (UP_ir, sizeof (*m));
 
     m->next        = NULL;
-    m->kind        = IR_recMethods;
+    m->kind        = kind;
     m->id          = id;
     m->visibility  = visibility;
-    m->u.methods   = mg;
-
-    return m;
-}
-
-IR_member IR_MemberField (IR_visibility visibility, S_symbol id, IR_typeDesignator td)
-{
-    IR_member m = U_poolAllocZero (UP_ir, sizeof (*m));
-
-    m->next               = NULL;
-    m->kind               = IR_recField;
-    m->id                 = id;
-    m->visibility         = visibility;
-    m->u.field.uiOffset   = 0;
-    m->u.field.td         = td;
 
     return m;
 }

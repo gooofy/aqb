@@ -23,7 +23,7 @@ System_Array *_ZN6System5Array14CreateInstanceERN6System4TypeiE (System_Type *el
     DPRINTF ("System.Array.CreateInstance: et=0x%08x kind=%d, size=%d, length=%d\n",
              elementType, elementType->_kind, elementType->_size, length);
 
-    System_Array *obj = (System_Array *)GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
+    System_Array *obj = (System_Array *)_ZN6System2GC9_AllocateEjjE(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
     if (!obj)
         ERROR (ERR_OUT_OF_MEMORY);
 
@@ -39,6 +39,8 @@ System_Array *_ZN6System5Array14CreateInstanceERN6System4TypeiE (System_Type *el
     obj->_data = ALLOCATE_(s, 0);
     if (!obj->_data)
         ERROR (ERR_OUT_OF_MEMORY);
+
+    _ZN6System2GC9_RegisterERN6System6ObjectE ((System_Object *)obj);
 
     return obj;
 }

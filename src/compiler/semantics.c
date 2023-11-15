@@ -39,10 +39,10 @@ struct SEM_item_
     SEM_itemKind      kind;
     union
     {
-        CG_item       cg;
-        IR_member     member;
-        IR_namespace  names;
-        IR_type       type;
+        CG_item                                                 cg;
+        struct { IR_type tyCls; IR_member m; CG_item thisRef; } member;
+        IR_namespace                                            names;
+        IR_type                                                 type;
     } u;
 };
 
@@ -60,9 +60,13 @@ static S_symbol S_Assert;
 static S_symbol S_Debug;
 static S_symbol S_Diagnostics;
 static S_symbol S___gc_scan;
+static S_symbol S__Allocate;
+static S_symbol S__Register;
 static S_symbol S_Object;
+static S_symbol S___init;
 
-static IR_namespace _g_sys_names=NULL;
+static IR_namespace _g_sys_names = NULL;
+static CG_item      _g_none_cg   = { IK_none, NULL };
 
 // System.String / System.GC / System.Array / System.Type / System.Object type caching
 static IR_type _g_tyString      = NULL;
@@ -173,8 +177,8 @@ static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res
 
 static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context context);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
-static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
-                                    SEM_context context, SEM_item *res);
+static bool _transCallMethodById (S_pos pos, IR_type tyCls, S_symbol methodId, CG_item thisRef, CG_itemList arglist,
+                                  SEM_context context, SEM_item *res);
 
 static bool _checkImplements (IR_type ty, IR_type tyIntf)
 {
@@ -563,6 +567,55 @@ static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit, S
             //item->ty = tyTo;
             return true;
 
+        case Ty_reference:
+        {
+            int cost=0;
+            if (!_compatible_ty(tyFrom, tyTo, &cost) || explicit)
+            {
+                if (explicit)
+                {
+                    assert(false); // FIXME: implement
+                    //CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+                    return true;
+                }
+                return false;
+            }
+            else
+            {
+                if (tyTo->kind == Ty_reference)
+                {
+                    // OOP: take care of pointer offset class <--> interface
+                    IR_type tyFromRef = tyFrom->u.ref;
+                    IR_type tyToRef   = tyTo->u.ref;
+
+                    if ((tyFromRef->kind == Ty_class) && (tyToRef->kind == Ty_interface))
+                    {
+                        assert (false); // FIXME
+#if 0
+                        Ty_implements implements = tyFromPtr->u.cls.implements;
+                        while (implements)
+                        {
+                            if (implements->intf == tyToPtr)
+                                break;
+                            implements=implements->next;
+                        }
+                        if (!implements)
+                            return FALSE;
+                        CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
+                        CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                        assert (item->kind == IK_varPtr);
+                        item->kind = IK_inReg;
+                        item->ty = tyTo;
+                        return true;
+#endif
+                    }
+                }
+                item->ty = tyTo;
+                return true;
+            }
+            break;
+        }
+
         case Ty_pointer:
             assert(false); // FIXME
             //if (!compatible_ty(tyFrom, tyTo) || explicit)
@@ -674,65 +727,101 @@ static bool _isDebugAssert (IR_method method)
     return true;
 }
 
-static bool _transCallMethod(S_pos pos, IR_methodGroup mg, CG_itemList arglist,
-                             SEM_context context, SEM_item *res)
+static int _scoreMethod (IR_method cand, CG_itemList arglist)
 {
-    // find best match between method signatures in this group and actual arg list
+    int             cost = 0;
+    IR_formal       f    = cand->proc->formals;
+    CG_itemListNode arg  = arglist->first;
 
-    IR_method bestMethod    = NULL;
-    int       bestCost      = INT_MAX;
-    bool      bestIsVarArgs = false;
+    if (!cand->proc->isStatic)
+        f=f->next; // skip <this> argument
 
-    for (IR_method cand=mg->first; cand; cand=cand->next)
+    while (f && arg)
     {
-        int  cost      = 0;
-        bool isVarArgs = false;
-
-        IR_formal f=cand->proc->formals;
-        CG_itemListNode arg = arglist->first;
-        while (f && arg)
+        // varargs?
+        if (f->isParams)
         {
-            // varargs?
-            if (f->isParams)
-            {
-                cost += 100;
-                f         = NULL;
-                arg       = NULL;
-                isVarArgs = true;
-                break;
-            }
-
-            IR_type argTy = arg->item.ty;
-            IR_type fTy   = f->ty;
-
-            int c = 0;
-            if (!_compatible_ty(/*tyFrom=*/argTy, /*tyTo=*/fTy, &c))
-            {
-                break;
-            }
-            cost += c;
-            f = f->next;
-            arg = arg->next;
+            cost += 100;
+            f         = NULL;
+            arg       = NULL;
+            break;
         }
 
-        if (f || arg)
-            continue;
+        IR_type argTy = arg->item.ty;
+        IR_type fTy   = f->ty;
 
-        if (cost < bestCost)
+        int c = 0;
+        if (!_compatible_ty(/*tyFrom=*/argTy, /*tyTo=*/fTy, &c))
         {
-            bestMethod    = cand;
-            bestCost      = cost;
-            bestIsVarArgs = isVarArgs;
+            break;
         }
+        cost += c;
+        f = f->next;
+        arg = arg->next;
+    }
+
+    if (f || arg)
+        return INT_MAX;
+    return cost;
+}
+
+static IR_method _findMethod (S_pos pos, IR_type tyCls, S_symbol methodId, CG_itemList arglist)
+{
+    IR_type   ty         = tyCls;
+    IR_method bestMethod = NULL;
+    int       bestCost   = INT_MAX;
+
+    while (ty)
+    {
+        assert (ty->kind == Ty_class);
+
+        IR_member entry = IR_findMember (tyCls, methodId, /*checkBase=*/false);
+        if (entry)
+        {
+            if (entry->kind != IR_recMethods)
+            {
+                EM_error(pos, "%s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(methodId));
+                return NULL;
+            }
+
+            // find best match between method signatures in this group and actual arg list
+
+            IR_methodGroup mg = entry->u.methods;
+            for (IR_method cand=mg->first; cand; cand=cand->next)
+            {
+                int cost = _scoreMethod (cand, arglist);
+
+                if (cost < bestCost)
+                {
+                    bestMethod    = cand;
+                    bestCost      = cost;
+                }
+            }
+        }
+
+        ty = ty->u.cls.baseTy;
     }
 
     if (!bestMethod)
-        return EM_error (pos, "no matching method for actual params found");
+        EM_error (pos, "no matching method for actual params found");
 
-    assert (!bestIsVarArgs); // FIXME: implement varargs support (i.e. transform arglist)
+    return bestMethod;
+}
+
+static bool _transCallMethod(S_pos pos, IR_method bestMethod, CG_item thisRef, CG_itemList arglist,
+                             SEM_context context, SEM_item *res)
+{
+    // prepend thisRef to arglist for non-static methods
+    if (!bestMethod->proc->isStatic)
+    {
+        CG_itemListNode thisNode = CG_itemListPrepend (arglist);
+        thisNode->item = thisRef;
+    }
+
     IR_formal f=bestMethod->proc->formals;
     for (CG_itemListNode arg = arglist->first; arg; arg=arg->next)
     {
+        assert (!f->isParams); // FIXME: implement varargs support (i.e. transform arglist)
         IR_type fTy = f->ty;
         if (!_convertTy (&arg->item, pos, fTy, /*explicit=*/false, context))
         {
@@ -753,25 +842,140 @@ static bool _transCallMethod(S_pos pos, IR_methodGroup mg, CG_itemList arglist,
 
         n = CG_itemListAppend(arglist);
         SEM_item semStr;
-        _transCallBuiltinMethod(pos, _getStringType(), S_Create, args2, context, &semStr);
+        _transCallMethodById(pos, _getStringType(), S_Create, _g_none_cg, args2, context, &semStr);
         n->item = semStr.u.cg;
     }
 
-    res->kind = SIK_cg;
-    CG_transMethodCall(context->code, pos, context->frame, bestMethod, arglist, &res->u.cg);
+    if (res)
+        res->kind = SIK_cg;
+    CG_transMethodCall(context->code, pos, context->frame, bestMethod, arglist, res ? &res->u.cg : NULL);
     return true;
 }
 
-static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
-                                    SEM_context context, SEM_item *res)
+static bool _transCallMethodById (S_pos pos, IR_type tyCls, S_symbol methodId, CG_item thisRef, CG_itemList arglist,
+                                  SEM_context context, SEM_item *res)
 {
     assert (tyCls->kind == Ty_class);
 
-    IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
-    if (!entry || (entry->kind != IR_recMethods))
-        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(builtinMethod));
+    IR_method method = _findMethod (pos, tyCls, methodId, arglist);
+    if (!method)
+        return false;
 
-    return _transCallMethod (pos, entry->u.methods, arglist, context, res);
+    return _transCallMethod (pos, method, thisRef, arglist, context, res);
+}
+
+static CG_itemList _elaborateArgumentList (IR_argumentList al, SEM_context context)
+{
+    CG_itemList args = CG_ItemList();
+    for (IR_argument a = al->first; a; a=a->next)
+    {
+        SEM_item item;
+        if (!_elaborateExpression (a->e, context, &item))
+            return NULL;
+
+        assert (item.kind == SIK_cg); // FIXME: members
+
+        CG_itemListNode n = CG_itemListAppend(args);
+        n->item = item.u.cg;
+    }
+    return args;
+}
+
+// allocate object memory, run init+constructor (creation/creator expression)
+static bool _transNewObject (S_pos pos, IR_type tyClsRef, IR_argumentList args, SEM_context context, SEM_item *thisRef)
+{
+    assert (tyClsRef->kind == Ty_reference);
+    assert (tyClsRef->u.ref->kind == Ty_class);
+
+    IR_type tyCls = tyClsRef->u.ref;
+
+    // GC._Allocate() memory for our new object
+
+    CG_itemList allocArglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, tyCls->u.cls.uiSize, IR_TypeUInt32());
+    n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, IR_TypeUInt32());
+
+    if (!_transCallMethodById(pos, _getSystemGCType(), S__Allocate, _g_none_cg, allocArglist, context, thisRef))
+        return false;
+
+    // cast ALLOCATE result to properly typed ref
+
+    assert (thisRef->kind == SIK_cg);
+    assert (thisRef->u.cg.ty->kind == Ty_reference);
+
+    thisRef->u.cg.ty = tyClsRef;
+
+    // call __init
+
+    CG_itemList initArglist = CG_ItemList();
+    //n = CG_itemListAppend(initArglist);
+    //n->item = res->u.cg;
+    if (!_transCallMethodById(pos, tyCls, S___init, thisRef->u.cg, initArglist, context, /*res=*/NULL))
+        return false;
+
+    // call constructor ?
+
+    CG_itemList constructorArgs = _elaborateArgumentList (args, context);
+    if (!constructorArgs)
+        return false;
+
+    // find best match between method signatures in this group and actual arg list
+
+    bool      argsEmpty       = constructorArgs->first == NULL;
+    bool      anyConstructor  = false;
+    IR_type   ty              = tyCls;
+    IR_method bestConstructor = NULL;
+    int       bestCost        = INT_MAX;
+    while (ty)
+    {
+        for (IR_member member = ty->u.cls.members->first; member; member=member->next)
+        {
+            if (member->kind != IR_recConstructors)
+                continue;
+            anyConstructor = true;
+
+            IR_methodGroup mg = member->u.constructors;
+
+            for (IR_method cand=mg->first; cand; cand=cand->next)
+            {
+                int cost = _scoreMethod (cand, constructorArgs);
+
+                if (cost < bestCost)
+                {
+                    bestConstructor = cand;
+                    bestCost        = cost;
+                }
+            }
+        }
+        ty = ty->u.cls.baseTy;
+    }
+
+    if (bestConstructor)
+    {
+        if (!_transCallMethod (pos, bestConstructor, thisRef->u.cg, constructorArgs, context, /*res=*/NULL))
+            return false;
+    }
+    else
+    {
+        if (!argsEmpty)
+        {
+            return EM_error (pos, "no matching constructor found");
+        }
+        else
+        {
+            if (anyConstructor)
+                return EM_error (pos, "no matching constructor found");
+        }
+    }
+
+    // register the new object with the garbage collector via GC._Register()
+
+    if (!_transCallMethodById(pos, _getSystemGCType(), S__Register, _g_none_cg, initArglist, context, /*res=*/NULL))
+        return false;
+
+    return true;
 }
 
 // given two types, try to come up with a type that covers both value ranges
@@ -1236,7 +1440,7 @@ static bool _varDeclaration (IR_variable v, SEM_context context)
             n = CG_itemListAppend(args);
             CG_IntItem (&n->item, ty->u.darray.dims[0], IR_TypeInt32()); // length
 
-            return _transCallBuiltinMethod(v->pos, _getSystemArrayType(), S_CreateInstance, args, context, se);
+            return _transCallMethodById(v->pos, _getSystemArrayType(), S_CreateInstance, _g_none_cg, args, context, se);
         }
     }
 
@@ -1273,27 +1477,22 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         EM_error (pos, "failed to elaborate method");
         return false;
     }
-    if ((fun.kind != SIK_member) || (fun.u.member->kind != IR_recMethods))
+    if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethods))
     {
         EM_error (pos, "tried to call something that is not a method");
         return false;
     }
 
     // elaborate actual arguments
-    CG_itemList args = CG_ItemList();
-    for (IR_argument a = expr->u.call.al->first; a; a=a->next)
-    {
-        SEM_item item;
-        if (!_elaborateExpression (a->e, context, &item))
-            return false;
+    CG_itemList arglist = _elaborateArgumentList (expr->u.call.al, context);
+    if (!arglist)
+        return false;
 
-        assert (item.kind == SIK_cg); // FIXME: members
+    IR_method method = _findMethod (pos, fun.u.member.tyCls, fun.u.member.m->id, arglist);
+    if (!method)
+        return false;
 
-        CG_itemListNode n = CG_itemListAppend(args);
-        n->item = item.u.cg;
-    }
-
-    return _transCallMethod(pos, fun.u.member->u.methods, args, context, res);
+    return _transCallMethod(pos, method, fun.u.member.thisRef, arglist, context, res);
 }
 
 static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1304,7 +1503,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _getStringType(), S_Create, args, context, res);
+    return _transCallMethodById(expr->pos, _getStringType(), S_Create, _g_none_cg, args, context, res);
 }
 
 static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM_item *res)
@@ -1369,10 +1568,10 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
             IR_member member = IR_findMember (parent.u.type, id, /*checkBase=*/true);
             if (member)
             {
-                res->kind = SIK_member;
-                //res->u.member.thisReg = NULL;
-                //res->u.member.thisTy  = parent.u.type;
-                res->u.member  = member;
+                res->kind                  = SIK_member;
+                res->u.member.tyCls        = parent.u.type;
+                res->u.member.m            = member;
+                res->u.member.thisRef.kind = IK_none;
                 return true;
             }
             EM_error (expr->pos, "failed to resolve %s [1]", S_name (id)); 
@@ -1476,10 +1675,10 @@ static bool _makeCG (S_pos pos, SEM_item *item, SEM_context context)
 
         case SIK_member:
         {
-            IR_member member = item->u.member;
+            IR_member member = item->u.member.m;
             item->kind = SIK_cg;
             assert (context->thisParam.kind);
-            item->u.cg = context->thisParam;
+            item->u.cg = item->u.member.thisRef.kind != IK_none ? item->u.member.thisRef : context->thisParam;
             CG_transField (context->code, pos, context->frame, &item->u.cg, member);
             return true;
         }
@@ -1634,6 +1833,7 @@ static bool _elaborateLValue (IR_expression expr, SEM_context context, SEM_item 
     return true;
 }
 
+
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res)
 {
     switch (expr->kind)
@@ -1685,6 +1885,17 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
 
             CG_transAssignment (context->code, expr->pos, context->frame, &target.u.cg, &res->u.cg);
             break;
+        }
+
+        case IR_expCREATION:
+        {
+            IR_type tyClsRef = _elaborateTypeDesignator(expr->u.creation.td, context);
+            if (!tyClsRef)
+                return false;
+            if ( (tyClsRef->kind != Ty_reference) || (tyClsRef->u.ref->kind != Ty_class) )
+                return EM_error (expr->pos, "Class type expected here.");
+
+            return _transNewObject (expr->pos, tyClsRef, expr->u.creation.al, context, res);
         }
 
         default:
@@ -1989,7 +2200,8 @@ static bool _procGenerateSignatureAndLabel (IR_proc proc, IR_name clsOwnerName, 
         while (f)
         {
             IR_type ty = f->ty;
-            _strappendNType (proc->pos, buf, ty, buf_len, &offset);
+            if (ty)
+                _strappendNType (proc->pos, buf, ty, buf_len, &offset);
             f = f->next;
         }
         _strappendN (buf, "E", buf_len, &offset, /*do_len=*/false);
@@ -2182,26 +2394,29 @@ static void _assembleVTables (IR_type tyCls)
 
     IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
     formals->ty = tyClsRef;
-    //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
-    string clsLabel = IR_name2string (tyCls->u.cls.name, "_");
-    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));
-    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___init_exit", clsLabel));
 
-    IR_proc proc = IR_Proc (pos, IR_visPublic, IR_pkConstructor, tyCls, S_Symbol("__init"),
-                                   /*isExtern=*/false, /*isStatic=*/false);
+    IR_proc proc = IR_Proc (pos, IR_visPublic, tyCls, S___init, /*isExtern=*/false, /*isStatic=*/false);
     proc->formals = formals;
     char labelbuf[MAX_LABEL_LEN];
     _procGenerateSignatureAndLabel (proc, proc->tyOwner ? proc->tyOwner->u.cls.name:NULL, labelbuf, MAX_LABEL_LEN);
 
-    tyCls->u.cls.__init = proc;
+    IR_method method = IR_Method (proc, /*isVirtual=*/false, /*isOverride=*/false);
 
-    CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
+    IR_methodGroup mg = IR_MethodGroup();
+    IR_methodGroupAdd (mg, method);
+    IR_member member = IR_Member (IR_recMethods, IR_visPublic, S___init);
+    member->u.methods = mg;
+    IR_addMember (tyCls->u.cls.members, member);
+
+
+    CG_frame frame = CG_Frame(pos, proc->label, formals, /*statc=*/true);
     AS_instrList il = AS_InstrList();
 
     // assemble and assign vtables for each implemented interface
     // (we may identify methods as virtual here, since methods that override interface
     //  methods do not need to be declared using the override keyword in C#)
 
+    string clsLabel = IR_name2string (tyCls->u.cls.name, "_");
     for (IR_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
     {
         IR_type tyIntf = implements->intfTy;
@@ -2405,6 +2620,7 @@ static void _assembleVTables (IR_type tyCls)
 
     CG_transAssignment (il, pos, frame, &objVTablePtr, &classVTablePtr);
 
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "%s___init_exit", S_name(proc->label)));
     CG_procEntryExit(pos,
                      frame,
                      il,
@@ -2424,7 +2640,7 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
     formals->next = IR_Formal(pos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
     formals->next->ty = IR_getPointer(S_noPos, _getSystemGCType());
 
-    IR_proc proc = IR_Proc (pos, IR_visPrivate, IR_pkFunction, tyCls, S___gc_scan,
+    IR_proc proc = IR_Proc (pos, IR_visPrivate, tyCls, S___gc_scan,
                             /*isExtern=*/OPT_gcScanExtern, /*isStatic=*/false);
     proc->formals = formals;
     char labelbuf[MAX_LABEL_LEN];
@@ -2524,7 +2740,8 @@ static IR_member _assembleClassGCScanMethod (IR_type tyCls)
     IR_method gcscanmethod = IR_Method (proc, /*isVirtual=*/true, /*isOverride=*/(tyBase != NULL));
     IR_methodGroup mg = IR_MethodGroup();
     IR_methodGroupAdd (mg, gcscanmethod);
-    IR_member gcscanmember = IR_MemberMethodGroup (IR_visPrivate, S___gc_scan, mg);
+    IR_member gcscanmember = IR_Member (IR_recMethods, IR_visPrivate, S___gc_scan);
+    gcscanmember->u.methods = mg;
 
     return gcscanmember;
 }
@@ -2547,7 +2764,7 @@ static void _clsAddIntfImplRecursive(IR_type tyCls, IR_type tyIntf)
 
     S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", IR_name2string(tyIntf->u.intf.name, "_")));
 
-    IR_member vTablePtr = IR_MemberField (IR_visProtected, sVTableEntry, /*td=*/NULL);
+    IR_member vTablePtr = IR_Member (IR_recField, IR_visProtected, sVTableEntry);
     vTablePtr->u.field.ty = IR_TypeVTablePtr();
 
     IR_fieldCalcOffset (tyCls, vTablePtr);
@@ -2679,7 +2896,8 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
             case IR_recProperty:
                 assert(false); break; // FIXME
             case IR_recConstructors:
-                assert(false); break; // FIXME
+                _elaborateMethodGroup (member->u.constructors, tyCls, context);
+                break;
         }
     }
 
@@ -2957,7 +3175,10 @@ static void _codegenClass (IR_type tyCls, IR_namespace parent)
     for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
     {
         SEM_item *se = _SEM_Item (SIK_member);
-        se->u.member = member;
+        se->u.member.tyCls        = tyCls;
+        se->u.member.m            = member;
+        se->u.member.thisRef.kind = IK_none;
+
         TAB_enter (context->blockEntries, member->id, se);
     }
 
@@ -2978,7 +3199,8 @@ static void _codegenClass (IR_type tyCls, IR_namespace parent)
             case IR_recProperty:
                 assert(false); break; // FIXME
             case IR_recConstructors:
-                assert(false); break; // FIXME
+                _codegenMethodGroup (member->u.constructors, tyCls, context);
+                break;
         }
     }
 }
@@ -3197,6 +3419,9 @@ void SEM_boot(void)
     S_Array          = S_Symbol("Array");
     S_Type           = S_Symbol("Type");
     S___gc_scan      = S_Symbol("__gc_scan");
+    S__Allocate      = S_Symbol("_Allocate");
+    S__Register      = S_Symbol("_Register");
     S_Object         = S_Symbol("Object");
+    S___init         = S_Symbol("__init");
 }
 
