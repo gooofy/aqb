@@ -403,7 +403,7 @@ static enum Temp_w CG_tySize(IR_type ty)
         //case Ty_procPtr:
         //case Ty_any:
             return Temp_w_L;
-        //case Ty_sarray:
+        case Ty_sarray:
         case Ty_darray:
         case Ty_class:
         case Ty_interface:
@@ -3261,7 +3261,6 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_frame frame, CG_relOp ro, C
     }
 }
 
-#if 0
 void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, CG_item *idx)
 {
     IR_type t = CG_ty(ape);
@@ -3282,7 +3281,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
                     off *= IR_typeSize(et);
                     if (off)
                         AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, Temp_w_L, NULL, ape->u.inReg,            // add.l #off, ape
-                                                              IR_ConstInt(Ty_Long(), off), 0, NULL));
+                                                              IR_ConstInt(IR_TypeInt32(), off), 0, NULL));
                     break;
                 }
                 case IK_inReg:
@@ -3297,32 +3296,32 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
                             break;
                         case 2:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #1, idx
-                                                                  IR_ConstInt(Ty_Long(), 1), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 1), 0, NULL));
                             break;
                         case 4:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #2, idx
-                                                                  IR_ConstInt(Ty_Long(), 2), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 2), 0, NULL));
                             break;
                         case 8:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #3, idx
-                                                                  IR_ConstInt(Ty_Long(), 3), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 3), 0, NULL));
                             break;
                         case 16:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #4, idx
-                                                                  IR_ConstInt(Ty_Long(), 4), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 4), 0, NULL));
                             break;
                         case 32:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #5, idx
-                                                                  IR_ConstInt(Ty_Long(), 2), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 2), 0, NULL));
                             break;
                         default:
                         {
                             CG_item temp;
-                            CG_TempItem (&temp, Ty_Long());
+                            CG_TempItem (&temp, IR_TypeInt32());
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, Temp_w_L, NULL, temp.u.inReg,       // move.l #ets, temp
-                                                                  IR_ConstInt(Ty_Long(), ets), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), ets), 0, NULL));
                             emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(temp.u.inReg, AS_regs[AS_TEMP_D0],              // mulu.l #ets, idx
-                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), Ty_Long(), idx);
+                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), IR_TypeInt32(), idx);
                             break;
                         }
                     }
@@ -3340,13 +3339,13 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
 
         case Ty_sarray:
         {
-            IR_type et = t->u.sarray.elementTy;
+            IR_type et = t->u.sarray.elementType;
             switch (idx->kind)
             {
                 case IK_const:
                 {
                     // compute constant offset
-                    int32_t off = CG_getConstInt(idx) - t->u.sarray.iStart;
+                    int32_t off = CG_getConstInt(idx);
                     off *= IR_typeSize(et);
                     switch (ape->kind)
                     {
@@ -3357,17 +3356,19 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
                             CG_loadRef (code, pos, frame, ape);
                             if (off)
                                 AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, Temp_w_L, NULL, ape->u.varPtr,   // add.l #off, ape
-                                                                      IR_ConstInt(Ty_Long(), off), 0, NULL));
+                                                                      IR_ConstInt(IR_TypeInt32(), off), 0, NULL));
                             break;
                     }
                     break;
                 }
                 case IK_inReg:
                 {
+                    assert(false); // FIXME
+#if 0
                     // offset computation
                     if (t->u.sarray.iStart)
                         AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, Temp_w_L, NULL, idx->u.inReg,            // sub.l #iStart, idx
-                                                              IR_ConstInt(Ty_Long(), t->u.sarray.iStart), 0, NULL));
+                                                              IR_ConstInt(IR_TypeInt32(), t->u.sarray.iStart), 0, NULL));
 
                     int ets = IR_typeSize(et);
                     switch (ets)
@@ -3378,38 +3379,39 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
                             break;
                         case 2:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #1, idx
-                                                                  IR_ConstInt(Ty_Long(), 1), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 1), 0, NULL));
                             break;
                         case 4:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #2, idx
-                                                                  IR_ConstInt(Ty_Long(), 2), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 2), 0, NULL));
                             break;
                         case 8:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #3, idx
-                                                                  IR_ConstInt(Ty_Long(), 3), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 3), 0, NULL));
                             break;
                         case 16:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #4, idx
-                                                                  IR_ConstInt(Ty_Long(), 4), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 4), 0, NULL));
                             break;
                         case 32:
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, Temp_w_L, NULL, idx->u.inReg,          // lsl.l #5, idx
-                                                                  IR_ConstInt(Ty_Long(), 2), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), 2), 0, NULL));
                             break;
                         default:
                         {
                             CG_item temp;
-                            CG_TempItem (&temp, Ty_Long());
+                            CG_TempItem (&temp, IR_TypeInt32());
                             AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, Temp_w_L, NULL, temp.u.inReg,       // move.l #ets, temp
-                                                                  IR_ConstInt(Ty_Long(), ets), 0, NULL));
+                                                                  IR_ConstInt(IR_TypeInt32(), ets), 0, NULL));
                             emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(temp.u.inReg, AS_regs[AS_TEMP_D0],              // mulu.l #ets, idx
-                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), Ty_Long(), idx);
+                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), IR_TypeInt32(), idx);
                             break;
                         }
                     }
 
                     CG_loadRef (code, pos, frame, ape);
                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, Temp_w_L, idx->u.inReg, ape->u.varPtr));      // add.l idx, ape
+#endif
                     break;
                 }
                 default:
@@ -3422,7 +3424,6 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
             assert (false);
     }
 }
-#endif // 0
 
 void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, IR_member entry)
 {
@@ -3691,19 +3692,18 @@ void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc, C
 
 void CG_transCallPtr (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc, CG_item *procPtr, CG_itemList args, CG_item *result)
 {
-    assert(false);
-    //int arg_cnt = munchArgsStack(pos, code, 0, args);
-    //CG_loadVal (code, pos, frame, procPtr);
-    //AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_An, Temp_w_NONE, procPtr->u.inReg, NULL, 0, 0, NULL,      // jsr   (procPtr)
-    //                                      AS_callersaves(), NULL));
-    //munchCallerRestoreStack(pos, code, arg_cnt);
-    //if (result)
-    //{
-    //    CG_item d0Item;
-    //    InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
-    //    CG_TempItem (result, proc->returnTy);
-    //    CG_transAssignment (code, pos, frame, result, &d0Item);
-    //}
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+    CG_loadVal (code, pos, frame, procPtr);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_An, Temp_w_NONE, procPtr->u.inReg, NULL, 0, 0, NULL,      // jsr   (procPtr)
+                                          AS_callersaves(), NULL));
+    munchCallerRestoreStack(pos, code, arg_cnt);
+    if (result)
+    {
+        CG_item d0Item;
+        InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
+        CG_TempItem (result, proc->returnTy);
+        CG_transAssignment (code, pos, frame, result, &d0Item);
+    }
 }
 
 bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method method, CG_itemList args, CG_item *result)
@@ -3729,22 +3729,22 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
 
         // call virtual method via vtable entry
         IR_type tyThis = thisRef.ty;
-        switch (tyThis->kind)
+        assert (tyThis->kind == Ty_reference);
+        switch (tyThis->u.ref->kind)
         {
             //case Ty_darray:
                 //tyThis = tyThis->u.darray.tyCArray;
                 /* fall through */
             case Ty_class:
             {
-                assert(false); // FIXME
-                //CG_item methodPtr = thisRef;
-                //Ty_member vtpm = tyThis->u.cls.vTablePtr;
-                //CG_transField   (code, pos, frame, &methodPtr, vtpm);
-                //CG_transDeRef (code, pos, frame, &methodPtr);
-                //CG_item idx;
-                //CG_IntItem (&idx, method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM, Ty_Integer());
-                //CG_transIndex  (code, pos, frame, &methodPtr, &idx);
-                //CG_transCallPtr (code, pos, frame, method->proc, &methodPtr, args, result);
+                CG_item methodPtr = thisRef;
+                IR_member vtpm = tyThis->u.ref->u.cls.vTablePtr;
+                CG_transField (code, pos, frame, &methodPtr, vtpm);
+                CG_transDeRef (code, pos, frame, &methodPtr);
+                CG_item idx;
+                CG_UIntItem (&idx, method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM, IR_TypeUInt16());
+                CG_transIndex  (code, pos, frame, &methodPtr, &idx);
+                CG_transCallPtr (code, pos, frame, method->proc, &methodPtr, args, result);
                 break;
             }
 
@@ -3768,7 +3768,7 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
                 //// compute interface object's actual this pointer by taking this_offset into account
                 //CG_item this_offset = vTable;
                 //assert(this_offset.kind==IK_varPtr);
-                //this_offset.ty = Ty_Long();
+                //this_offset.ty = IR_TypeInt32();
                 //CG_loadVal(code, pos, frame, &this_offset);
 
                 //CG_item intfThis = thisRef;
@@ -4018,16 +4018,15 @@ void CG_transNOP (AS_instrList code, S_pos pos)
     AS_instrListAppend (code, AS_Instr (pos, AS_NOP, Temp_w_NONE, NULL, NULL));                                             //      nop
 }
 
-#if 0
 void CG_transDeRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 {
     IR_type ty = CG_ty(item);
-    assert ( (ty->kind == Ty_reference) || (ty->kind == Ty_procPtr) );
+    //assert ( (ty->kind == Ty_reference) || (ty->kind == Ty_procPtr) );
+    assert (ty->kind == Ty_pointer);
     CG_loadVal (code, pos, frame, item);
     item->kind = IK_varPtr;
     item->ty = ty->u.pointer;
 }
-#endif // 0
 
 void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, IR_type to_ty)
 {
@@ -4666,7 +4665,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         //case Ty_string:
                         //    fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
                         //    break;
-                        //case Ty_sarray:
+                        case Ty_sarray:
                         case Ty_darray:
                         case Ty_class:
                         case Ty_interface:

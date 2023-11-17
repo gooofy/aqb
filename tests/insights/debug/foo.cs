@@ -50,9 +50,8 @@ namespace Testcase12
 
             // DIM o AS myc1 PTR = NEW myc1(23)
 
-            // DIM i AS INTEGER
+            int i = o.retrieve();
 
-            // i = o->retrieve()
             // 'TRACE "i="; i
             // ASSERT i = 23
 

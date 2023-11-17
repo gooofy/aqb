@@ -182,7 +182,7 @@ typedef enum {
            Ty_pointer,      // 13
 
            Ty_darray,       // 14
-           //Ty_sarray,       // 15
+           Ty_sarray,       // 15
 
            //Ty_record,       // 16
 
@@ -196,7 +196,7 @@ struct IR_type_
     IR_TypeKind kind;
     S_pos       pos;
     Temp_label  systemTypeLabel; // System.Type instance corresponding to this type
-    string      systemTypeDesc;  // same as systemTypeLabel but without the __td_ prefix
+    S_symbol    systemTypeDesc;  // same as systemTypeLabel but without the __td_ prefix
     union
     {
         IR_type                                                               pointer;

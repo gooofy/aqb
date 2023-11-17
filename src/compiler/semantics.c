@@ -1423,6 +1423,7 @@ static bool _varDeclaration (IR_variable v, SEM_context context)
         case Ty_class:
         case Ty_interface:
         case Ty_pointer:
+        case Ty_sarray:
             assert(false); // FIXME
             break;
 
@@ -1577,7 +1578,33 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
             EM_error (expr->pos, "failed to resolve %s [1]", S_name (id)); 
             break;
         }
-        default:
+        case SIK_cg:
+        {
+            IR_type tyCls = parent.u.cg.ty;
+            assert (tyCls->kind == Ty_reference);
+            tyCls = tyCls->u.ref;
+            assert (tyCls->kind == Ty_class);
+            IR_member member = IR_findMember (tyCls, id, /*checkBase=*/true);
+            if (member)
+            {
+                switch (member->kind)
+                {
+                    case IR_recMethods:
+                    {
+                        res->kind             = SIK_member;
+                        res->u.member.tyCls   = tyCls;
+                        res->u.member.m       = member;
+                        res->u.member.thisRef = parent.u.cg;
+                        return true;
+                    }
+                    default:
+                        assert(false); // FIXME
+                }
+            }
+            EM_error (expr->pos, "failed to resolve %s [2]", S_name (id));
+            break;
+        }
+        case SIK_member:
             // FIXME: implement
             assert(false);
     }
@@ -3309,6 +3336,14 @@ static void _genSystemType (IR_type ty)
             CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), 0));
             break;
         }
+        case Ty_sarray:
+        {
+            CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), ty->u.sarray.numDims));
+            for (int i=0; i<ty->u.sarray.numDims; i++)
+                CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), ty->u.sarray.dims[i]));
+            CG_dataFragAddConst (frag, IR_ConstInt (IR_TypeInt32(), 0));
+            break;
+        }
         default:
             assert(false);
     }
@@ -3396,9 +3431,10 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
     if (is_main)
     {
         TAB_iter iter = IR_iterateTypes();
-        IR_type ty, ty2;
+        S_symbol td;
+        IR_type  ty;
 
-        while (TAB_next (iter, (void **)&ty, (void **)&ty2))
+        while (TAB_next (iter, (void **)&td, (void **)&ty))
             _genSystemType (ty);
     }
 }

@@ -3,9 +3,9 @@
 
 static S_symbol S_Main;
 
-static TAB_table   _g_ptrCache; // IR_type -> IR_type
-static TAB_table   _g_refCache; // IR_type -> IR_type
-static TAB_table   _g_typeReg ; // IR_type -> IR_type (itself, this is a hash set)
+//static TAB_table   _g_ptrCache; // IR_type -> IR_type
+//static TAB_table   _g_refCache; // IR_type -> IR_type
+static TAB_table   _g_typeReg ; // System.type.* td -> IR_type
 
 void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
 {
@@ -257,8 +257,8 @@ int IR_typeSize (IR_type ty)
         case Ty_darray:
             // FIXME ? return ty->u.darray.tyCArray->u.cls.uiSize;
             return 4;
-        //case Ty_sarray:
-        //     return ty->u.sarray.uiSize;
+        case Ty_sarray:
+             return ty->u.sarray.uiSize;
         //case Ty_record:
         //    return ty->u.record.uiSize;
         case Ty_interface:
@@ -272,39 +272,58 @@ int IR_typeSize (IR_type ty)
     return 4;
 }
 
-static string _genSystemTypeDesc (IR_type ty)
+static S_symbol _genSystemTypeDesc (IR_type ty);
+
+static string _genSystemTypeDescRef (IR_type ref)
 {
-    string td = ty->systemTypeDesc;
+    S_symbol tdRef = _genSystemTypeDesc (ref);
+    return strprintf(UP_frontend, "ref_%s", S_name (tdRef));
+}
+
+static string _genSystemTypeDescPtr (IR_type ptr)
+{
+    S_symbol tdPtr = _genSystemTypeDesc (ptr);
+    return strprintf(UP_frontend, "ptr_%s", S_name(tdPtr));
+}
+
+static S_symbol _genSystemTypeDesc (IR_type ty)
+{
+    S_symbol td = ty->systemTypeDesc;
     if (!td)
     {
+        string std;
         switch (ty->kind)
         {
+            case Ty_unresolved:
+                std = IR_name2string (ty->u.unresolved, "_");
+                break;
+
             case Ty_boolean:
-                ty->systemTypeDesc = td = "System_boolean";
+                std = "System_boolean";
                 break;
             case Ty_byte:
-                ty->systemTypeDesc = td = "System_byte";
+                std = "System_byte";
                 break;
             case Ty_sbyte:
-                ty->systemTypeDesc = td = "System_sbyte";
+                std = "System_sbyte";
                 break;
             case Ty_int16:
-                ty->systemTypeDesc = td = "System_int16";
+                std = "System_int16";
                 break;
             case Ty_uint16:
-                ty->systemTypeDesc = td = "System_uin16";
+                std = "System_uin16";
                 break;
             case Ty_int32:
-                ty->systemTypeDesc = td = "System_int32";
+                std = "System_int32";
                 break;
             case Ty_uint32:
-                ty->systemTypeDesc = td = "System_uint32";
+                std = "System_uint32";
                 break;
             case Ty_single:
-                ty->systemTypeDesc = td = "System_single";
+                std = "System_single";
                 break;
             case Ty_double:
-                ty->systemTypeDesc = td = "System_double";
+                std = "System_double";
                 break;
             //case Ty_record:
             //    ty->systemTypeDesc = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
@@ -312,30 +331,38 @@ static string _genSystemTypeDesc (IR_type ty)
             //                                                    S_name(ty->u.record.name)));
             //    break;
             case Ty_interface:
-                ty->systemTypeDesc = td = IR_name2string (ty->u.intf.name, "_");
+                std = IR_name2string (ty->u.intf.name, "_");
                 break;
 
             case Ty_class:
-                ty->systemTypeDesc = td = IR_name2string (ty->u.cls.name, "_");
+                std = IR_name2string (ty->u.cls.name, "_");
                 break;
 
             case Ty_pointer:
-                ty->systemTypeDesc = td = strprintf(UP_frontend, "ptr_%s", _genSystemTypeDesc (ty->u.pointer));
+                std = _genSystemTypeDescPtr (ty->u.ref);
                 break;
 
             case Ty_reference:
-                ty->systemTypeDesc = td = strprintf(UP_frontend, "ref_%s", _genSystemTypeDesc (ty->u.ref));
+                std = _genSystemTypeDescRef (ty->u.ref);
                 break;
 
             case Ty_darray:
-                td = "array_";
+                std = "darray_";
 
                 for (int i=0; i<ty->u.darray.numDims; i++)
-                    td = strprintf(UP_frontend, "%s%d_", td, i);
+                    std = strprintf(UP_frontend, "%s%d_", std, i);
 
-                td = strconcat (UP_frontend, td, _genSystemTypeDesc (ty->u.darray.elementType));
+                std = strconcat (UP_frontend, std, S_name(_genSystemTypeDesc (ty->u.darray.elementType)));
+                break;
 
-                ty->systemTypeDesc = td;
+            case Ty_sarray:
+                std = "sarray_";
+
+                for (int i=0; i<ty->u.darray.numDims; i++)
+                    std = strprintf(UP_frontend, "%s%d_", std, i);
+
+                std = strconcat (UP_frontend, std, S_name(_genSystemTypeDesc (ty->u.darray.elementType)));
+
                 break;
 
             //case Ty_sarray:
@@ -348,11 +375,13 @@ static string _genSystemTypeDesc (IR_type ty)
             //    break;
             default:
                 assert(false); // FIXME
+                std = "???";
                 //ty->systemTypeDesc = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%08x",
                 //                                                S_name(ty->mod->name),
                 //                                                ty->uid));
                 break;
         }
+        ty->systemTypeDesc = td = S_Symbol (std);
     }
     return td;
 }
@@ -361,13 +390,17 @@ Temp_label IR_genSystemTypeLabel (IR_type ty)
 {
     Temp_label label = ty->systemTypeLabel;
     if (!label)
-        ty->systemTypeLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s", _genSystemTypeDesc (ty)));
+    {
+        S_symbol td = _genSystemTypeDesc (ty);
+        ty->systemTypeLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s", S_name(td)));
+    }
     return label;
 }
 
 void IR_registerType (IR_type ty)
 {
-    TAB_enter (_g_typeReg, ty, ty);
+    S_symbol td = _genSystemTypeDesc (ty);
+    TAB_enter (_g_typeReg, td, ty);
 }
 
 TAB_iter IR_iterateTypes (void)
@@ -537,38 +570,46 @@ IR_type IR_TypeDArray (S_pos pos, int numDims, IR_type elementType)
 
 IR_type IR_getReference (S_pos pos, IR_type ty)
 {
-    IR_type p = TAB_look(_g_refCache, ty);
+    // check type cache first
+
+    string std = _genSystemTypeDescRef (ty);
+    S_symbol td  = S_Symbol (std);
+
+    IR_type p = TAB_look(_g_typeReg, td);
     if (p)
         return p;
 
     p = U_poolAllocZero (UP_ir, sizeof (*p));
 
-    p->kind      = Ty_reference;
-    p->pos       = pos;
-    p->u.pointer = ty;
+    p->kind           = Ty_reference;
+    p->pos            = pos;
+    p->u.ref          = ty;
+    p->systemTypeDesc = td;
 
-    TAB_enter (_g_refCache, ty, p);
-
-    IR_registerType (p);
+    TAB_enter (_g_typeReg, td, p);
 
     return p;
 }
 
 IR_type IR_getPointer (S_pos pos, IR_type ty)
 {
-    IR_type p = TAB_look(_g_ptrCache, ty);
+    // check type cache first
+
+    string std = _genSystemTypeDescPtr (ty);
+    S_symbol td  = S_Symbol (std);
+
+    IR_type p = TAB_look(_g_typeReg, td);
     if (p)
         return p;
 
     p = U_poolAllocZero (UP_ir, sizeof (*p));
 
-    p->kind      = Ty_pointer;
-    p->pos       = pos;
-    p->u.pointer = ty;
+    p->kind           = Ty_pointer;
+    p->pos            = pos;
+    p->u.pointer      = ty;
+    p->systemTypeDesc = td;
 
-    TAB_enter (_g_ptrCache, ty, p);
-
-    IR_registerType (p);
+    TAB_enter (_g_typeReg, td, p);
 
     return p;
 }
@@ -857,6 +898,8 @@ IR_type IR_TypeBytePtr(void) {return _tyBytePtr;}
 static IR_type _tyUInt32Ptr;
 IR_type IR_TypeUInt32Ptr(void) {return _tyUInt32Ptr;}
 
+static IR_type _tyVTableArray;
+
 static IR_type _tyVTablePtr;
 IR_type IR_TypeVTablePtr(void) {return _tyVTablePtr;}
 
@@ -885,8 +928,8 @@ static IR_type _mkPointerType (IR_type baseTy)
 
 void IR_init(void)
 {
-    _g_ptrCache = TAB_empty(UP_ir);
-    _g_refCache = TAB_empty(UP_ir);
+    //_g_ptrCache = TAB_empty(UP_ir);
+    //_g_refCache = TAB_empty(UP_ir);
     _g_typeReg  = TAB_empty(UP_ir);
 
     IR_registerType (_tyBoolean);
@@ -900,11 +943,9 @@ void IR_init(void)
     IR_registerType (_tyDouble );
 
     IR_registerType (_tyBytePtr  );
-    TAB_enter (_g_ptrCache, _tyByte, _tyBytePtr);
     IR_registerType (_tyUInt32Ptr );
-    TAB_enter (_g_ptrCache, _tyUInt32, _tyUInt32Ptr);
+    IR_registerType (_tyVTableArray );
     IR_registerType (_tyVTablePtr );
-    TAB_enter (_g_ptrCache, _tyUInt32Ptr, _tyVTablePtr);
 }
 
 void IR_boot(void)
@@ -925,6 +966,19 @@ void IR_boot(void)
 
     _tyBytePtr   = _mkPointerType (_tyByte);
     _tyUInt32Ptr = _mkPointerType (_tyUInt32);
-    _tyVTablePtr = _mkPointerType (_tyUInt32Ptr/*FIXME*/);
+
+    // vTablePtr : pointer to an open static array of UInt32s
+
+    _tyVTableArray = U_poolAllocZero (UP_ir, sizeof (*_tyVTableArray));
+
+    _tyVTableArray->kind                 = Ty_sarray;
+    _tyVTableArray->pos                  = S_noPos;
+    _tyVTableArray->u.sarray.numDims     = 1;
+    _tyVTableArray->u.sarray.dims[0]     = -1;
+    _tyVTableArray->u.sarray.elementType = _tyUInt32;
+    _tyVTableArray->u.sarray.uiSize      = 0;
+    _tyVTableArray->systemTypeLabel      = IR_genSystemTypeLabel (_tyVTableArray);
+
+    _tyVTablePtr = _mkPointerType (_tyVTableArray);
 }
 

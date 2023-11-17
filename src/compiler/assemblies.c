@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     14
+#define SYM_VERSION     15
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -138,6 +138,12 @@ static void _serializeIRTypeRef (IR_type ty)
             fwrite_u1(ty->u.darray.numDims);
             for (int i=0; i<ty->u.darray.numDims; i++)
                 fwrite_u1(ty->u.darray.dims[i]);
+            break;
+        case Ty_sarray:
+            _serializeIRTypeRef (ty->u.sarray.elementType);
+            fwrite_u1(ty->u.sarray.numDims);
+            for (int i=0; i<ty->u.sarray.numDims; i++)
+                fwrite_u1(ty->u.sarray.dims[i]);
             break;
         default:
             assert(false); // FIXME
@@ -440,6 +446,12 @@ static IR_type _deserializeIRTypeRef (void)
             for (int i=0; i<ty->u.darray.numDims; i++)
                 ty->u.darray.dims[i] = fread_u1();
             break;
+        case Ty_sarray:
+            ty->u.sarray.elementType = _deserializeIRTypeRef ();
+            ty->u.sarray.numDims = fread_u1();
+            for (int i=0; i<ty->u.sarray.numDims; i++)
+                ty->u.sarray.dims[i] = fread_u1();
+            break;
         default:
             assert(false);
             return NULL;
@@ -553,38 +565,26 @@ static void _deserializeIRType(IR_type ty)
     assert (ty->kind == Ty_unresolved);
     uint8_t kind = fread_u1();
 
-    switch (kind)
+    assert (kind == Ty_class);
+
+    ty->kind = Ty_class;
+    ty->u.cls.name = _deserializeIRName ();
+    ty->u.cls.visibility = fread_u1 ();
+    ty->u.cls.isStatic = fread_u1 ();
+    ty->u.cls.uiSize = fread_u4 ();
+    ty->u.cls.baseTy = _deserializeIRTypeRef ();
+    //assert (!ty->u.cls.implements); // FIXME
+    // FIXME ty->u.cls.constructor = _deserializeIRProc (ty);
+    ty->u.cls.members = _deserializeIRMemberList (ty);
+    ty->u.cls.virtualMethodCnt = fread_u2 ();
+    // take care of vTablePtr
+    if (!ty->u.cls.baseTy)
     {
-        case Ty_pointer:
-            ty->kind = kind;
-            ty->u.pointer = _deserializeIRTypeRef ();
-            break;
-        case Ty_class:
-        {
-            ty->kind = Ty_class;
-            ty->u.cls.name = _deserializeIRName ();
-            ty->u.cls.visibility = fread_u1 ();
-            ty->u.cls.isStatic = fread_u1 ();
-            ty->u.cls.uiSize = fread_u4 ();
-            ty->u.cls.baseTy = _deserializeIRTypeRef ();
-            //assert (!ty->u.cls.implements); // FIXME
-            // FIXME ty->u.cls.constructor = _deserializeIRProc (ty);
-            ty->u.cls.members = _deserializeIRMemberList (ty);
-            ty->u.cls.virtualMethodCnt = fread_u2 ();
-            // take care of vTablePtr
-            if (!ty->u.cls.baseTy)
-            {
-                ty->u.cls.vTablePtr = ty->u.cls.members->first;
-            }
-            else
-            {
-                ty->u.cls.vTablePtr = ty->u.cls.baseTy->u.cls.vTablePtr;
-            }
-            IR_registerType (ty);
-            break;
-        }
-        default:
-            assert(false);
+        ty->u.cls.vTablePtr = ty->u.cls.members->first;
+    }
+    else
+    {
+        ty->u.cls.vTablePtr = ty->u.cls.baseTy->u.cls.vTablePtr;
     }
 
     IR_registerType (ty);
