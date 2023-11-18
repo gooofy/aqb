@@ -3427,6 +3427,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
 
 void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, IR_member entry)
 {
+    assert (entry->kind == IR_recField);
     IR_type t = CG_ty(recordPtr);
 
     switch (t->kind)

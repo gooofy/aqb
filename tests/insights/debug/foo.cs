@@ -48,17 +48,18 @@ namespace Testcase12
 
             myc1 o = new myc1(23);
 
-            // DIM o AS myc1 PTR = NEW myc1(23)
-
             int i = o.retrieve();
+            Console.Write ("i=");
+            Console.Write (i);
+            Console.WriteLine("");
+            Debug.Assert(i==23);
 
-            // 'TRACE "i="; i
-            // ASSERT i = 23
-
-            // o->store(42)
-            // i = o->retrieve()
-            // 'TRACE "i="; i
-            // ASSERT i = 42
+            o.store(42);
+            i = o.retrieve();
+            Console.Write ("i=");
+            Console.Write (i);
+            Console.WriteLine("");
+            Debug.Assert(i==42);
 
             // ' now, convert o to interface ptr, test functionality by calling the intf procs
 

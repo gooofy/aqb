@@ -30,7 +30,6 @@ static IR_namespace _g_sys_names; /* System. namespace */
 
 static S_symbol S_System;
 static S_symbol S_Object;
-static S_symbol S__vTablePtr;
 static S_symbol S_this;
 static S_symbol S___CONSTRUCTOR;
 
@@ -1714,9 +1713,6 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
         return;
     }
 
-    // either one or the other!
-    IR_type           tyBase = NULL;
-    //IR_typeDesignator tdBase = NULL;
     IR_implements     implFirst=NULL, implLast=NULL;
     if (S_tkn.kind == S_COLON)
     {
@@ -1764,23 +1760,10 @@ static void _class_declaration (uint32_t mods, IR_namespace parent)
     ty->u.cls.name             = fqn;
     ty->u.cls.visibility       = visibility;
     ty->u.cls.isStatic         = isStatic;
-    ty->u.cls.uiSize           = 0;
-    ty->u.cls.baseTy           = tyBase;
     ty->u.cls.implements       = implFirst;
     ty->u.cls.members          = IR_MemberList();
     ty->u.cls.virtualMethodCnt = 0;
 
-    // vTablePtr has to be the very first field
-    if (!tyBase)
-    {
-        ty->u.cls.vTablePtr = IR_Member (IR_recField, IR_visProtected, S__vTablePtr);
-        ty->u.cls.vTablePtr->u.field.ty = IR_TypeVTablePtr();
-        IR_addMember (ty->u.cls.members, ty->u.cls.vTablePtr);
-    }
-    else
-    {
-        ty->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
-    }
 
     IR_definition def = IR_DefinitionType (parent, id, ty);
     IR_assemblyAdd (_g_assembly, def);
@@ -2148,7 +2131,6 @@ void PA_boot(void)
 {
     S_System        = S_Symbol("System");
     S_Object        = S_Symbol("Object");
-    S__vTablePtr    = S_Symbol("_vTablePtr");
     S_this          = S_Symbol("this");
     S___CONSTRUCTOR = S_Symbol("__CONSTRUCTOR");
 }

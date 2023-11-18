@@ -64,6 +64,7 @@ static S_symbol S__Allocate;
 static S_symbol S__Register;
 static S_symbol S_Object;
 static S_symbol S___init;
+static S_symbol S__vTablePtr;
 
 static IR_namespace _g_sys_names = NULL;
 static CG_item      _g_none_cg   = { IK_none, NULL };
@@ -2854,9 +2855,47 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
     }
 
     tyCls->u.cls.baseTy = tyBase;
-    // take base class vtable entries into account
+
+    // take care of __gc_scan method - has to be the very first vtable entry for our GC to find it
+
+    IR_member gcscanmember = _assembleClassGCScanMethod (tyCls);
+
+    IR_memberList ml = tyCls->u.cls.members;
+    if (ml->first)
+    {
+        gcscanmember->next = ml->first;
+        ml->first = gcscanmember;
+    }
+    else
+    {
+        ml->first = ml->last = gcscanmember;
+    }
+
+    // take base class vtable + size entries into account
     if (tyBase)
+    {
         tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
+        tyCls->u.cls.uiSize           = tyBase->u.cls.uiSize;
+        tyCls->u.cls.vTablePtr        = tyBase->u.cls.vTablePtr;
+        assert (tyCls->u.cls.vTablePtr->kind == IR_recField);
+    }
+    else
+    {
+        // create vTablePtr entry
+        // vTablePtr has to be the very first field
+        tyCls->u.cls.vTablePtr = IR_Member (IR_recField, IR_visProtected, S__vTablePtr);
+        tyCls->u.cls.vTablePtr->u.field.ty = IR_TypeVTablePtr();
+
+        if (tyCls->u.cls.members->first)
+        {
+            tyCls->u.cls.vTablePtr->next = tyCls->u.cls.members->first;
+            tyCls->u.cls.members->first  = tyCls->u.cls.vTablePtr;
+        }
+        else
+        {
+            tyCls->u.cls.members->first = tyCls->u.cls.members->last = tyCls->u.cls.vTablePtr;
+        }
+    }
 
     /*
      * add interface vTablePtr member entries
@@ -2876,8 +2915,7 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 
     // elaborate other members
 
-    IR_memberList ml = tyCls->u.cls.members;
-    for (IR_member member = ml->first; member; member=member->next)
+    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
     {
         switch (member->kind)
         {
@@ -2898,20 +2936,6 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
     /*
      * elaborate methods
      */
-
-    // take care of __gc_scan method - has to be the very first vtable entry for our GC to find it
-
-    IR_member gcscanmember = _assembleClassGCScanMethod (tyCls);
-
-    if (ml->first)
-    {
-        gcscanmember->next = ml->first;
-        ml->first = gcscanmember;
-    }
-    else
-    {
-        ml->first = ml->last = gcscanmember;
-    }
 
     for (IR_member member = ml->first; member; member=member->next)
     {
@@ -3462,5 +3486,6 @@ void SEM_boot(void)
     S__Register      = S_Symbol("_Register");
     S_Object         = S_Symbol("Object");
     S___init         = S_Symbol("__init");
+    S__vTablePtr     = S_Symbol("_vTablePtr");
 }
 
