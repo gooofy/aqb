@@ -972,7 +972,10 @@ static bool _transNewObject (S_pos pos, IR_type tyClsRef, IR_argumentList args, 
 
     // register the new object with the garbage collector via GC._Register()
 
-    if (!_transCallMethodById(pos, _getSystemGCType(), S__Register, _g_none_cg, initArglist, context, /*res=*/NULL))
+    CG_itemList regArglist = CG_ItemList();
+    n = CG_itemListAppend(regArglist);
+    n->item = thisRef->u.cg;
+    if (!_transCallMethodById(pos, _getSystemGCType(), S__Register, _g_none_cg, regArglist, context, /*res=*/NULL))
         return false;
 
     return true;
