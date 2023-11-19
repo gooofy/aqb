@@ -2515,6 +2515,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_int32:
                                 case Ty_uint32:
                                 case Ty_reference:
+                                case Ty_pointer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
                                     break;
                                 case Ty_single:
@@ -3751,36 +3752,34 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
 
             case Ty_interface:
             {
-                assert(false); // FIXME
-                //// for interfaces, thisRef points to the object's vTablePtr field
-                //// that corresponds to this interface
+                // for interfaces, thisRef points to the object's vTablePtr field
+                // that corresponds to this interface
 
-                //CG_item vTable = thisRef;
+                CG_item vTable = thisRef;
                 //assert(vTable.kind==IK_varPtr);
-                //vTable.ty = Ty_VTablePtr();
-                //CG_transDeRef (code, pos, frame, &vTable);
+                vTable.ty = IR_TypeVTablePtr();
+                CG_transDeRef (code, pos, frame, &vTable);
 
-                //CG_item methodPtr = vTable;
-                //CG_item idx;
-                //// interface tables have a this_offset as their first entry, hence +1
-                //CG_IntItem (&idx, method->vTableIdx+1, Ty_Integer());
-                //CG_transIndex  (code, pos, frame, &methodPtr, &idx);
+                CG_item methodPtr = vTable;
+                CG_item idx;
+                // interface tables have a this_offset as their first entry, hence +1
+                CG_IntItem (&idx, method->vTableIdx+1, IR_TypeInt32());
+                CG_transIndex  (code, pos, frame, &methodPtr, &idx);
 
-                //// compute interface object's actual this pointer by taking this_offset into account
-                //CG_item this_offset = vTable;
-                //assert(this_offset.kind==IK_varPtr);
-                //this_offset.ty = IR_TypeInt32();
-                //CG_loadVal(code, pos, frame, &this_offset);
+                // compute interface object's actual this pointer by taking this_offset into account
+                CG_item this_offset = vTable;
+                assert(this_offset.kind==IK_varPtr);
+                this_offset.ty = IR_TypeInt32();
+                CG_loadVal(code, pos, frame, &this_offset);
 
-                //CG_item intfThis = thisRef;
-                //assert(intfThis.kind==IK_varPtr);
-                //intfThis.ty = Ty_AnyPtr();
-                //intfThis.kind = IK_inReg;
-                //CG_loadVal(code, pos, frame, &intfThis);
-                //CG_transBinOp (code, pos, frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
-                //args->first->item = intfThis;
+                CG_item intfThis = thisRef;
+                intfThis.ty = IR_TypeUInt32Ptr(); // FIXME: Object ref?
+                intfThis.kind = IK_inReg;
+                CG_loadVal(code, pos, frame, &intfThis);
+                CG_transBinOp (code, pos, frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
+                args->first->item = intfThis;
 
-                //CG_transCallPtr (code, pos, frame, method->proc, &methodPtr, args, result);
+                CG_transCallPtr (code, pos, frame, method->proc, &methodPtr, args, result);
                 break;
             }
 
@@ -4022,11 +4021,19 @@ void CG_transNOP (AS_instrList code, S_pos pos)
 void CG_transDeRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 {
     IR_type ty = CG_ty(item);
-    //assert ( (ty->kind == Ty_reference) || (ty->kind == Ty_procPtr) );
-    assert (ty->kind == Ty_pointer);
     CG_loadVal (code, pos, frame, item);
     item->kind = IK_varPtr;
-    item->ty = ty->u.pointer;
+    switch (ty->kind)
+    {
+        case Ty_pointer:
+            item->ty = ty->u.pointer;
+            break;
+        case Ty_reference:
+            item->ty = ty->u.ref;
+            break;
+        default:
+            assert(false);
+    }
 }
 
 void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, IR_type to_ty)

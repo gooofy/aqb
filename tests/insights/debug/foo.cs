@@ -43,29 +43,35 @@ namespace Testcase12
     {
         static void Main(string[] args)
         {
+            int i;
 
             // create object, test functionality via object ref
 
             myc1 o = new myc1(23);
 
-            int i = o.retrieve();
-            Console.Write ("i=");
-            Console.Write (i);
-            Console.WriteLine("");
-            Debug.Assert(i==23);
+            //int i = o.retrieve();
+            //Console.Write ("i=");
+            //Console.Write (i);
+            //Console.WriteLine("");
+            //Debug.Assert(i==23);
 
-            o.store(42);
-            i = o.retrieve();
+            //o.store(42);
+            //i = o.retrieve();
+            //Console.Write ("i=");
+            //Console.Write (i);
+            //Console.WriteLine("");
+            //Debug.Assert(i==42);
+
+            // now, convert o to an interface typed reference, test functionality by calling interface methods
+
+            i1 myi1 = o;
+
+            i = myi1.retrieve();
             Console.Write ("i=");
             Console.Write (i);
             Console.WriteLine("");
             Debug.Assert(i==42);
 
-            // ' now, convert o to interface ptr, test functionality by calling the intf procs
-
-            // DIM iptr AS i1 PTR = o
-
-            // i = iptr->retrieve()
             // 'TRACE "i="; i
             // ASSERT i = 42
 

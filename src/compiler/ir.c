@@ -718,9 +718,13 @@ IR_member IR_findMember (IR_type ty, S_symbol id, bool checkBase)
         case Ty_class:
             ml = ty->u.cls.members;
             break;
+        case Ty_interface:
+            ml = ty->u.intf.members;
+            break;
         case Ty_reference:
             return IR_findMember (ty->u.ref, id, checkBase);
         default:
+            assert(false); // FIXME
             return NULL;
     }
 

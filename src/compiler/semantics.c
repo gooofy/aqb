@@ -39,10 +39,10 @@ struct SEM_item_
     SEM_itemKind      kind;
     union
     {
-        CG_item                                                 cg;
-        struct { IR_type tyCls; IR_member m; CG_item thisRef; } member;
-        IR_namespace                                            names;
-        IR_type                                                 type;
+        CG_item                                                    cg;
+        struct { IR_type tyParent; IR_member m; CG_item thisRef; } member;
+        IR_namespace                                               names;
+        IR_type                                                    type;
     } u;
 };
 
@@ -186,22 +186,20 @@ static bool _checkImplements (IR_type ty, IR_type tyIntf)
     assert (tyIntf->kind == Ty_interface);
     switch (ty->kind)
     {
-        // FIXME
-        //case Ty_interface:
-        //    if (ty==tyIntf)
-        //        return true;
-        //    for (IR_implements implements=ty->u.interface.implements; implements; implements=implements->next)
-        //    {
-        //        if (_checkImplements (implements->intf, tyIntf))
-        //            return true;
-        //    }
-        //    break;
+        case Ty_interface:
+            if (ty==tyIntf)
+                return true;
+            for (IR_implements implements=ty->u.intf.implements; implements; implements=implements->next)
+            {
+                if (_checkImplements (implements->intfTy, tyIntf))
+                    return true;
+            }
+            break;
         case Ty_class:
             for (IR_implements implements=ty->u.cls.implements; implements; implements=implements->next)
             {
-                assert(false); // FIXME
-                //if (_checkImplements (implements->intf, tyIntf))
-                //    return true;
+                if (_checkImplements (implements->intfTy, tyIntf))
+                    return true;
             }
             break;
         default:
@@ -242,12 +240,10 @@ static bool _compatible_ty(IR_type tyFrom, IR_type tyTo, int *cost)
         //    return FALSE;
         //    break;
 
-        // FIXME
-        //case Ty_interface:
-        //    if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
-        //        return Ty_checkImplements (tyFrom, tyTo);
-        //    return FALSE;
-        //    break;
+        case Ty_interface:
+            if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
+                return _checkImplements (tyFrom, tyTo);
+            return false;
 
         case Ty_reference:
 
@@ -591,24 +587,21 @@ static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit, S
 
                     if ((tyFromRef->kind == Ty_class) && (tyToRef->kind == Ty_interface))
                     {
-                        assert (false); // FIXME
-#if 0
-                        Ty_implements implements = tyFromPtr->u.cls.implements;
+                        IR_implements implements = tyFromRef->u.cls.implements;
                         while (implements)
                         {
-                            if (implements->intf == tyToPtr)
+                            if (implements->intfTy == tyToRef)
                                 break;
                             implements=implements->next;
                         }
                         if (!implements)
-                            return FALSE;
-                        CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
-                        CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                            return false;
+                        CG_transDeRef (context->code, pos, context->frame, item);
+                        CG_transField (context->code, pos, context->frame, item, implements->vTablePtr);
                         assert (item->kind == IK_varPtr);
                         item->kind = IK_inReg;
                         item->ty = tyTo;
                         return true;
-#endif
                     }
                 }
                 item->ty = tyTo;
@@ -766,22 +759,36 @@ static int _scoreMethod (IR_method cand, CG_itemList arglist)
     return cost;
 }
 
-static IR_method _findMethod (S_pos pos, IR_type tyCls, S_symbol methodId, CG_itemList arglist)
+static IR_method _findMethod (S_pos pos, IR_type tyParent, S_symbol methodId, CG_itemList arglist)
 {
-    IR_type   ty         = tyCls;
+    IR_type   ty         = tyParent;
     IR_method bestMethod = NULL;
     int       bestCost   = INT_MAX;
 
     while (ty)
     {
-        assert (ty->kind == Ty_class);
+        IR_member entry = NULL;
+        switch (ty->kind)
+        {
+            case Ty_class:
+                entry = IR_findMember (tyParent, methodId, /*checkBase=*/false);
+                ty = ty->u.cls.baseTy;
+                break;
 
-        IR_member entry = IR_findMember (tyCls, methodId, /*checkBase=*/false);
+            case Ty_interface:
+                entry = IR_findMember (tyParent, methodId, /*checkBase=*/false);
+                ty = NULL;
+                break;
+
+            default:
+                assert(false);
+        }
+
         if (entry)
         {
             if (entry->kind != IR_recMethods)
             {
-                EM_error(pos, "%s's %s is not a method.", IR_name2string(tyCls->u.cls.name, "."), S_name(methodId));
+                EM_error(pos, "%s's %s is not a method.", IR_name2string(tyParent->u.cls.name, "."), S_name(methodId));
                 return NULL;
             }
 
@@ -799,8 +806,6 @@ static IR_method _findMethod (S_pos pos, IR_type tyCls, S_symbol methodId, CG_it
                 }
             }
         }
-
-        ty = ty->u.cls.baseTy;
     }
 
     if (!bestMethod)
@@ -1493,7 +1498,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
     if (!arglist)
         return false;
 
-    IR_method method = _findMethod (pos, fun.u.member.tyCls, fun.u.member.m->id, arglist);
+    IR_method method = _findMethod (pos, fun.u.member.tyParent, fun.u.member.m->id, arglist);
     if (!method)
         return false;
 
@@ -1574,7 +1579,7 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
             if (member)
             {
                 res->kind                  = SIK_member;
-                res->u.member.tyCls        = parent.u.type;
+                res->u.member.tyParent     = parent.u.type;
                 res->u.member.m            = member;
                 res->u.member.thisRef.kind = IK_none;
                 return true;
@@ -1584,21 +1589,21 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
         }
         case SIK_cg:
         {
-            IR_type tyCls = parent.u.cg.ty;
-            assert (tyCls->kind == Ty_reference);
-            tyCls = tyCls->u.ref;
-            assert (tyCls->kind == Ty_class);
-            IR_member member = IR_findMember (tyCls, id, /*checkBase=*/true);
+            IR_type tyParent = parent.u.cg.ty;
+            assert (tyParent->kind == Ty_reference);
+            tyParent = tyParent->u.ref;
+            assert ((tyParent->kind == Ty_class) || (tyParent->kind == Ty_interface));
+            IR_member member = IR_findMember (tyParent, id, /*checkBase=*/true);
             if (member)
             {
                 switch (member->kind)
                 {
                     case IR_recMethods:
                     {
-                        res->kind             = SIK_member;
-                        res->u.member.tyCls   = tyCls;
-                        res->u.member.m       = member;
-                        res->u.member.thisRef = parent.u.cg;
+                        res->kind              = SIK_member;
+                        res->u.member.tyParent = tyParent;
+                        res->u.member.m        = member;
+                        res->u.member.thisRef  = parent.u.cg;
                         return true;
                     }
                     default:
@@ -2829,18 +2834,45 @@ static void _elaborateClass (IR_type tyCls, IR_namespace parent)
      * determine base class type
      */
 
-    IR_type tyBase = NULL;
+    IR_type       tyBase   = NULL;
+    IR_implements prevImpl = NULL;
 
     for (IR_implements impl = tyCls->u.cls.implements; impl; impl=impl->next)
     {
+        bool remove = false;
+
         impl->intfTy = _elaborateTypeDesignator (impl->intfTd, context);
-        if (impl->intfTy && impl->intfTy->kind == Ty_class)
+
+        if (impl->intfTy && impl->intfTy->kind == Ty_reference)
         {
-            if (!tyBase)
-                tyBase = impl->intfTy;
-            else
-                EM_error (impl->pos, "multiple inheritance is not supported.");
+            IR_type intfTy2 = impl->intfTy->u.ref;
+            switch (intfTy2->kind)
+            {
+                case Ty_class:
+                    if (!tyBase)
+                        tyBase = intfTy2;
+                    else
+                        EM_error (impl->pos, "multiple inheritance is not supported.");
+                    remove = true;
+                    break;
+
+                case Ty_interface:
+                    impl->intfTy = intfTy2;
+                    break;
+
+                default:
+                    EM_error (impl->pos, "interface or class type expected here");
+                    remove = true;
+            }
         }
+        else
+        {
+            EM_error (impl->pos, "interface or class type expected here");
+            remove = true;
+        }
+        assert (!remove); // FIXME
+        prevImpl = impl;
+        assert (prevImpl); // FIXME
     }
 
     if (!tyBase)
@@ -3142,7 +3174,7 @@ static IR_type _elaborateTypeDesignator (IR_typeDesignator td, SEM_context conte
 
     t = _applyTdExt (t, td->exts, context);
 
-    if (t->kind == Ty_class)
+    if ((t->kind == Ty_class) || (t->kind == Ty_interface))
     {
         t = IR_getReference (name->pos, t);
     }
@@ -3229,7 +3261,7 @@ static void _codegenClass (IR_type tyCls, IR_namespace parent)
     for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
     {
         SEM_item *se = _SEM_Item (SIK_member);
-        se->u.member.tyCls        = tyCls;
+        se->u.member.tyParent     = tyCls;
         se->u.member.m            = member;
         se->u.member.thisRef.kind = IK_none;
 
