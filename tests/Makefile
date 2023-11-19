@@ -3,7 +3,7 @@ include ../config.mk
 ACSLIBS=../src/lib
 ACSFLAGS     = -L $(ACSLIBS) -l _urt
 
-SRCS = overload1.cs
+SRCS = overload1.cs oop12.cs
 
 #SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 #		const1.bas const2.bas const3.bas constprop.bas \

@@ -474,6 +474,7 @@ IR_type            IR_TypeDouble         (void);
 IR_type            IR_TypeBytePtr        (void);
 IR_type            IR_TypeUInt32Ptr      (void);
 IR_type            IR_TypeVTablePtr      (void);
+IR_type            IR_TypeVTablePtrPtr   (void);
 
 void               IR_init               (void);
 void               IR_boot               (void);

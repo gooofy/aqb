@@ -148,7 +148,7 @@ int32_t         CG_getConstInt      (CG_item *item);
 double          CG_getConstFloat    (CG_item *item);
 bool            CG_getConstBool     (CG_item *item);
 
-void            CG_loadVal          (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
+void            CG_loadVal          (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, bool clone);
 void            CG_loadRef          (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
 void            CG_loadCond         (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
 

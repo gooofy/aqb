@@ -907,6 +907,9 @@ static IR_type _tyVTableArray;
 static IR_type _tyVTablePtr;
 IR_type IR_TypeVTablePtr(void) {return _tyVTablePtr;}
 
+static IR_type _tyVTablePtrPtr;
+IR_type IR_TypeVTablePtrPtr(void) {return _tyVTablePtrPtr;}
+
 static IR_type _mkStdType (IR_TypeKind kind)
 {
     IR_type ty = U_poolAllocZero (UP_ir, sizeof (*ty));
@@ -950,6 +953,7 @@ void IR_init(void)
     IR_registerType (_tyUInt32Ptr );
     IR_registerType (_tyVTableArray );
     IR_registerType (_tyVTablePtr );
+    IR_registerType (_tyVTablePtrPtr );
 }
 
 void IR_boot(void)
@@ -983,6 +987,7 @@ void IR_boot(void)
     _tyVTableArray->u.sarray.uiSize      = 0;
     _tyVTableArray->systemTypeLabel      = IR_genSystemTypeLabel (_tyVTableArray);
 
-    _tyVTablePtr = _mkPointerType (_tyVTableArray);
+    _tyVTablePtr    = _mkPointerType (_tyVTableArray);
+    _tyVTablePtrPtr = _mkPointerType (_tyVTablePtr);
 }
 

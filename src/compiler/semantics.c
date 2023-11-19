@@ -833,7 +833,7 @@ static bool _transCallMethod(S_pos pos, IR_method bestMethod, CG_item thisRef, C
         {
             assert(false);
         }
-        CG_loadVal (context->code, pos, context->frame, &arg->item);
+        CG_loadVal (context->code, pos, context->frame, &arg->item, /*clone=*/false);
         f = f->next;
     }
 
@@ -1783,7 +1783,7 @@ static bool _elaborateExprIncrDecr (IR_expression expr, SEM_context context, SEM
         return EM_error (pos, "expression expected here.");
 
     CG_item a = res->u.cg;
-    CG_loadVal (context->code, pos, context->frame, &a);
+    CG_loadVal (context->code, pos, context->frame, &a, /*clone=*/false);
 
     IR_type tyRes = CG_ty(&res->u.cg);
     CG_item one;
@@ -1857,19 +1857,6 @@ static bool _elaborateExprComparison (IR_expression expr, SEM_context context, S
     return true;
 }
 
-static bool _elaborateLValue (IR_expression expr, SEM_context context, SEM_item *res)
-{
-    if (!_elaborateExpression (expr, context, res))
-        return false;
-
-    if (!_makeCG (expr->pos, res, context))
-        return false;
-
-    CG_loadRef (context->code, expr->pos, context->frame, &res->u.cg);
-    return true;
-}
-
-
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res)
 {
     switch (expr->kind)
@@ -1911,13 +1898,18 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
         case IR_expASSIGN:
         {
             SEM_item target;
-            if (!_elaborateLValue (expr->u.assign.target, context, &target))
+
+            if (!_elaborateExpression (expr->u.assign.target, context, &target))
                 return false;
-            assert (target.kind == SIK_cg);
+
+            if (!_makeCG (expr->u.assign.target->pos, &target, context))
+                return false;
+
             if (!_elaborateExpression (expr->u.assign.e, context, res))
                 return false;
 
-            assert (res->kind == SIK_cg);
+            if (!_makeCG (expr->u.assign.e->pos, res, context))
+                return false;
 
             CG_transAssignment (context->code, expr->pos, context->frame, &target.u.cg, &res->u.cg);
             break;
@@ -2503,20 +2495,16 @@ static void _assembleVTables (IR_type tyCls)
                             continue;
                         }
 
+                        // turn impl into a virtual method
                         if (impl->vTableIdx < 0)
                         {
                             impl->isVirtual  = true;
                             impl->isOverride = true;
                             impl->vTableIdx = tyCls->u.cls.virtualMethodCnt++;
-                            //EM_error (pos, "Class %s: implementation for %s.%s needs to be declared as virtual",
-                            //          IR_name2string(tyCls->u.cls.name, "."),
-                            //          IR_name2string(tyIntf->u.intf.name, "."),
-                            //          S_name(intfProc->id));
-                            //continue;
                         }
 
                         IR_proc proc = impl->proc;
-                        CG_dataFragSetPtr (vTableFrag, proc->label, impl->vTableIdx+1);
+                        CG_dataFragSetPtr (vTableFrag, proc->label, m->vTableIdx+1);
                     }
                     break;
                 }

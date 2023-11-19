@@ -1,91 +1,35 @@
+/*
+ * overloading test 1: type compatibility + conversion
+ */
+
 using System;
 using System.Diagnostics;
 
-//
-// OOP Test 12
-//
-// interfaces
-//
-
-namespace Testcase12
+namespace ConsoleApp10
 {
-    interface i1
-    {
-        void store    (int i);
-        int  retrieve ();
-    }
-
-    class myc1 : i1
-    {
-        private int field1;
-
-        public myc1 (int initValue)
-        {
-            field1 = initValue;
-        }
-
-        public void store (int i)
-        {
-            field1 = i;
-        }
-        public int retrieve ()
-        {
-            return field1;
-        }
-
-        public int square()
-        {
-            return field1 * field1;
-        }
-    };
-
     class Program
     {
+        static void f1(byte b)
+        {
+            //Console.WriteLine ("f1 byte called");
+            Debug.Assert(b==128);
+        }
+
+        static void f1(int a)
+        {
+            //Console.WriteLine ("f1 int called");
+            Debug.Assert(a==1280);
+        }
+
         static void Main(string[] args)
         {
-            int i;
+            byte   myb   = 128;
+            short  myi16 = 1280;
+            int    myi32 = 1280;
 
-            // create object, test functionality via object ref
-
-            myc1 o = new myc1(23);
-
-            //int i = o.retrieve();
-            //Console.Write ("i=");
-            //Console.Write (i);
-            //Console.WriteLine("");
-            //Debug.Assert(i==23);
-
-            //o.store(42);
-            //i = o.retrieve();
-            //Console.Write ("i=");
-            //Console.Write (i);
-            //Console.WriteLine("");
-            //Debug.Assert(i==42);
-
-            // now, convert o to an interface typed reference, test functionality by calling interface methods
-
-            i1 myi1 = o;
-
-            i = myi1.retrieve();
-            Console.Write ("i=");
-            Console.Write (i);
-            Console.WriteLine("");
-            Debug.Assert(i==42);
-
-            // 'TRACE "i="; i
-            // ASSERT i = 42
-
-            // iptr->store(23)
-
-            // i = iptr->retrieve()
-            // 'TRACE "i="; i
-            // ASSERT i = 23
-
-            // ' finally, test via object ptr again
-
-            // ASSERT o->retrieve()  = 23
+            f1(myb);
+            f1(myi16);
+            f1(myi32);
         }
     }
 }
-
-
