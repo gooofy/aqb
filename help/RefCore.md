@@ -582,7 +582,7 @@ Syntax:
 
     INSTR "(" [n] "," x "," y ")"
 
-look for the first occurence of string y in string x and return the (1-based)
+look for the first occurrence of string y in string x and return the (1-based)
 character position, if found, 0 otherwise. If n is specified, the search will
 start at the nth character of x, otherwise search will start at the beginning.
 
@@ -700,7 +700,7 @@ Syntax:
 
 Return portion of string s beginning at character position n (1 based) and
 length m.  When m is not specified, the function returns the remainder of the
-string from the starting character position.  If m reaches beyound the string
+string from the starting character position.  If m reaches beyond the string
 end it will be trimmed automatically.
 
 Example:

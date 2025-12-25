@@ -7,7 +7,7 @@
  * trap/instructions used to cause child exceptions:
  *
  * ILLEGAL  - editor (dynamic) breakpoints
- * TRAP 0   - runtime CTRL-C catched
+ * TRAP 0   - runtime CTRL-C caught
  * TRAP 1   - runtime (hard coded) breakpoints
  * TRAP 2   - runtime asserts
  * TRAP 3   - runtime unhandled errors (ERROR statement)
@@ -1249,7 +1249,7 @@ static void _debug(struct DebugMsg *msg)
             IDE_cprintf(g_ide, "\n\n");
             break;
         default:
-            IDE_cprintf(g_ide, "TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
+            IDE_cprintf(g_ide, "TRAP #%d (\?\?\?) occurred.\n\n", g_trapCode);
     }
     UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
 

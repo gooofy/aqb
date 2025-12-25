@@ -19,7 +19,7 @@ Arguments:
  * scid: screen id - if given, colors will be applied to it
  * pMETA: pointer to metadata
  * pPalette: pointer to a palette
- * cont: if TRUE, allocate bitplanes in a continous memory area suitable for BOBs
+ * cont: if TRUE, allocate bitplanes in a continuous memory area suitable for BOBs
 
 Example:
 
