@@ -24,6 +24,8 @@ DIM SHARED AS INTEGER rx ( 4, 4 ), ry ( 4, 4 )
 DIM SHARED AS INTEGER piecex ( 4 )
 DIM SHARED AS INTEGER piecey ( 4 )
 
+DIM SHARED AS INTEGER PBAG ( 7 ) : REM one bag of 7 pieces
+
 DIM SHARED AS INTEGER PP : REM preview piece
 DIM SHARED AS INTEGER PC : REM current piece
 DIM SHARED AS INTEGER ROT : REM rotation
@@ -31,8 +33,23 @@ DIM SHARED AS INTEGER L = 0 : REM lines
 DIM SHARED AS INTEGER S = 0 : REM score
 DIM SHARED AS INTEGER difficulty = 50 : REM score increase per dropped line
 
+DIM SHARED AS INTEGER PBAGC = 7 : REM counter of the current piece in the bag, 7 means new bag
+
 DIM SHARED AS BOOLEAN gameover = FALSE
 DIM SHARED AS BOOLEAN doquit   = FALSE
+
+SUB NEWBAG
+    PBAG(0) = Int ( Rnd (1) * 7 ) + 1     
+    FOR i AS INTEGER = 1 TO 6
+        PBAG(i) = Int ( Rnd (1) * 7 ) + 1
+        FOR k AS INTEGER = 0 TO i-1
+            WHILE PBAG(i) = PBAG(k)
+                PBAG(i) = Int ( Rnd (1) * 7 ) + 1
+                k = 0                
+            WEND 
+        NEXT k            
+    NEXT i        
+END SUB
 
 SUB DEFINEPIECE ( BYVAL p AS INTEGER )
     SELECT CASE p
@@ -194,7 +211,15 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
 END SUB
 
 SUB PREVIEW
-    PP = Int ( Rnd ( 1 ) * 7 ) + 1
+    IF PBAGC = 7 THEN
+        NEWBAG
+        PBAGC = 0
+        PP = PBAG ( PBAGC )
+        PBAGC = PBAGC + 1        
+    ELSE
+        PP = PBAG ( PBAGC )
+        PBAGC = PBAGC + 1        
+    END IF
     
     DEFINEPIECE PP
     
